@@ -1,7 +1,7 @@
 function Order(){
     return(
         <div className="order">
-            <h1>Order your spot the song cards here!</h1>
+            <h1>Order your SPOT cards here!</h1>
         </div>
     )
 }

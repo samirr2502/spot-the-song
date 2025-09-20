@@ -1,0 +1,58 @@
+/* === Base Card === */
+.card {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: var(--space-md);
+    color: var(--text-light);
+    overflow: hidden;
+  }
+  
+  /* === Info Card === */
+  .card-info {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .card-info .card-title {
+    background-color: var(--bg-panel);
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--text-light);
+    border-bottom: 1px solid var(--gray-600);
+  }
+  
+  .card-info .card-body {
+    padding: var(--space-md);
+    font-size: var(--font-size-base);
+    color: var(--text-muted);
+  }
+  
+  /* === Button Card === */
+  .card-button {
+    text-align: center;
+    padding: var(--space-lg);
+    cursor: pointer;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  
+  .card-button:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+  }
+  
+  /* === Banner Card === */
+  .card-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-2xl);
+    background-color: var(--color-primary);
+    color: var(--bg-dark);
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    text-align: center;
+    border-radius: var(--radius-lg);
+  }
+  

@@ -2,7 +2,9 @@ import { NavLink } from "react-router-dom"
 function Header(){
     return(
     <header>
-
+        <span className="logo">
+            SPOT
+        </span>
     <NavLink to='/'>
         Home
     </NavLink>

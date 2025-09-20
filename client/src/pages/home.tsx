@@ -1,13 +1,17 @@
 import { NavLink } from "react-router-dom";
+import Instructions from "../snippets/instructions";
 
 function Home(){
     return (
         <div className="home">
         <h1>Spot the Song</h1>
-
-        <NavLink to="/pay">Play</NavLink>
-        <NavLink to="/order">Order</NavLink>
-
+        <div className="actions">
+        <NavLink to="/play"><button className="btn btn-primary">Play </button></NavLink>
+        <NavLink to="/order"><button className="btn btn-secondary">Order</button></NavLink>
+        </div>
+        
+        <Instructions/>
+        
         </div>
     )
 }
