@@ -6,6 +6,7 @@ import Play from './pages/play'
 import Footer from './snippets/footer'
 import Header from './snippets/headet'
 import './style/App.css'
+import './style/utilities.css'
 import {BrowserRouter, Route, Routes} from 'react-router-dom'
 function App() {
 
