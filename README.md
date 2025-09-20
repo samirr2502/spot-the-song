@@ -10,10 +10,10 @@ Order:
     Language: React tsx
     Tools: WebApis, Websocket, connection to Databes
 ### Pages 
-    Home
-    Play
-    Order
-    About
+    Home / Play / Order / About
+### Design
+    Using Spotify theme (Gray/Black/Green) colors as the main theme.
+
 ### Users will [Desired]
     Give Spot access to Spotify
     
