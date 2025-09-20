@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import About from './pages/about'
 import Home from './pages/home'
 import NotFound from './pages/notFound'
@@ -10,25 +11,28 @@ import './style/utilities.css'
 import './style/elements.css'
 import './style/buttons.css'
 import './style/cards.css'
-import {BrowserRouter, Route, Routes} from 'react-router-dom'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import user from './_resources/userInfo.json'
 function App() {
+  const [auth, setAuth] = useState(false)
+  const [currentUser, setCurrentUser] = useState({})
 
   return (
     <>
-    <BrowserRouter>
-    <Header />
-    <main>
-     <Routes>
-      <Route path="/" element={<Home/>}/>
-      <Route path="/play" element={<Play/>}/>
-      <Route path="/order" element={<Order/>}/>
-      <Route path="/about" element={<About/>}/>
-      <Route path="*" element={<NotFound/>} />
-     </Routes>
-     </main>
+      <BrowserRouter>
+        <Header />
+        <main>
+          <Routes>
+            <Route path="/" element={<Home user={user} setCurrentUser={setCurrentUser} auth={auth} setAuth={setAuth}/>} />
+            <Route path="/play" element={<Play />} />
+            <Route path="/order" element={<Order user={currentUser} />} />
+            <Route path="/about" element={<About />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </main>
 
-     <Footer/>
-     </BrowserRouter>
+        <Footer />
+      </BrowserRouter>
     </>
   )
 }

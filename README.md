@@ -23,5 +23,7 @@ Order:
     Order Mode:
         * Based on a chose playlistt generate printable file wuth [Front] QR code, and [Back] Song info. 
 
-
+### Testing 
+    Added Login option to simulate Actual login in production
 ### Users can [Delivered]
+
