@@ -25,5 +25,6 @@ Order:
 
 ### Testing 
     Added Login option to simulate Actual login in production
+    Home page looks good. Order page is looking a tiny bit better.
 ### Users can [Delivered]
 

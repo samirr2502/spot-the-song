@@ -7,11 +7,11 @@ const GroupCards: React.FC<authProps>=({user}) =>{
     const userPlayLists = playlists.filter((item)=>(item.userName === user.userName))
     return(
         <div className="groupCards">
-            {userPlayLists.map((item)=>(
-                <div className='card card-button'>
+            {userPlayLists.map((item, index)=>(
+                <div className='card card-button' key ={index}>
                     <h2 className='card-tite'>{item.playListName}</h2>
-                    {item.songs.map((song)=>(
-                        <li>{song.name}, {song.artist}, {song.year}</li>
+                    {item.songs.map((song, index)=>(
+                        <li key ={index}>{song.name}, {song.artist}, {song.year}</li>
                     ))}
                 </div>
             ))}

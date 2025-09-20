@@ -5,7 +5,7 @@ import NotFound from './pages/notFound'
 import Order from './pages/order'
 import Play from './pages/play'
 import Footer from './snippets/footer'
-import Header from './snippets/headet'
+import Header from './snippets/header'
 import './style/App.css'
 import './style/utilities.css'
 import './style/elements.css'
@@ -20,12 +20,12 @@ function App() {
   return (
     <>
       <BrowserRouter>
-        <Header />
+        <Header auth={auth} />
         <main>
           <Routes>
             <Route path="/" element={<Home user={user} setCurrentUser={setCurrentUser} auth={auth} setAuth={setAuth}/>} />
             <Route path="/play" element={<Play />} />
-            <Route path="/order" element={<Order user={currentUser} />} />
+            <Route path="/order" element={<Order auth= {auth}user={currentUser} />} />
             <Route path="/about" element={<About />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

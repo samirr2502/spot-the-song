@@ -1,5 +1,5 @@
 export interface authProps {
-    user:any;
+    user?:any;
     setCurrentUser?:any;
     auth?:boolean;
     setAuth?:any;

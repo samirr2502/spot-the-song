@@ -5,21 +5,21 @@ function Instructions() {
                 <h2 >Instructions</h2>
             </div>
             <div className="card-body">
-                <p>
+                <h3>
                     Grant SPOT access to your spotify
-                </p>
-                <p>
+                </h3>
+                <h3>
                     Go to Play/Order
-                </p>
-                <p>
+                </h3>
+                <h3>
                     Select the Playlist
-                </p>
-                <p>
+                </h3>
+                <h3>
                     Generate PDF
-                </p>
-                <p>
+                </h3>
+                <h3>
                     Dowload or order a copy
-                </p>
+                </h3>
             </div>
         </div>
     )
