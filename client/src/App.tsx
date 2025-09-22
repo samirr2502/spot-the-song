@@ -11,6 +11,7 @@ import './style/utilities.css'
 import './style/elements.css'
 import './style/buttons.css'
 import './style/cards.css'
+import './style/popup.css'
 
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import user from './_resources/userInfo.json'

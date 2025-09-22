@@ -116,8 +116,9 @@ footer a:hover {
 
 /* === Order & Play Pages === */
 .page-grid, .order {
-  display: grid;
-  grid-template-rows: repeat(auto-fit, minmax(var(--space-md), 1fr));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: var(--space-lg);
   width: 100%;
   max-width: 1200px;
@@ -128,26 +129,14 @@ footer a:hover {
   justify-content: center;
   flex-wrap: wrap;
 }
-/* == ProfileInfo == */
-/* .profile-info {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-.profile-header{
-  text-align: center;
-  background-color: var(--bg-panel);
-  display: column;
-  gap:var(--space-md)
-} */
+
 .profile-info {
   /* background: var(--bg-dark, #fff); */
   display: flex;
   flex-direction: column;
   border-radius: var(--radius-lg, 1rem);
   box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.1));
-
-  
+  gap:var(--space-md)
 }
 
 
@@ -159,7 +148,8 @@ footer a:hover {
   justify-items: center;
   justify-content: center;
   align-items:center ;
-  gap:var(--space-md)
+  gap:var(--space-md);
+  padding: var(--space-md);
 }
 
 .groupCards {

@@ -17,7 +17,7 @@ const Home: React.FC<authProps> = ({ user, setCurrentUser, auth, setAuth }) => {
         <div className="home">
             <h1>Spot the Song</h1>
             <div className="actions">
-                {!auth && <button className="btn btn-secondary" onClick={()=>handleLogin(setAuth, user, setCurrentUser)}>Get Access</button>}
+                {!auth && <button className="btn btn-secondary" onClick={()=>handleLogin(setAuth, user, setCurrentUser)}>Guest Access</button>}
 
                 {auth && <>
                     <NavLink to="/play"><button className="btn btn-primary">Play </button></NavLink>

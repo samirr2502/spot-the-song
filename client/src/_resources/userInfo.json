@@ -1,12 +1,13 @@
 [
     {
-        "userName": "Samir",
+        "userName": "Guest",
         "totalPlaylists": 2,
         "songsInFavorites": 4,
         "playLists": [
             {
                 "name": "THIS IS A 30 CHARACTER TEXT@@@",
-                "totalSongs": 10
+                "totalSongs": 10,
+                "playlistLink":"https://open.spotify.com/playlist/516zfhdPyMGGEXucyTdlcu"
             },
             {
                 "name": "play 2 title long... very long",

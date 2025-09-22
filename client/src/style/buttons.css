@@ -1,5 +1,4 @@
 /* === Base Button === */
-button, 
 .btn {
   border-radius: var(--radius-md);
   border: 1px solid transparent;
@@ -45,12 +44,12 @@ button,
 
 /* Info (blue accent) */
 .btn-info {
-  background-color: #3b82f6; /* blue */
+  background-color: var(--color-primary-dark); /* blue */
   color: #ffffff;
 }
 .btn-info:hover {
-  background-color: #2563eb;
-  border-color: #1e40af;
+  background-color: var(--color-primary-light); /* blue */
+
 }
 /* Info (blue accent) */
 .btn-disabled {
@@ -76,4 +75,83 @@ button,
 .btn-outline:hover {
   border-color: var(--color-primary);
   color: var(--color-primary-light);
+}
+
+
+/*Button Links*/
+/* === Button Link Base === */
+.btn-link {
+  display: inline;              /* inline like normal text */
+  padding: 0;                   /* remove button padding */
+  cursor: pointer;              /* still clickable */
+  text-align: left;             /* natural alignment */
+  text-decoration: underline;   /* underline like a link */
+  transition: color 0.2s ease; 
+}
+
+/* Primary Link */
+.btn-link-primary {
+  color: var(--color-primary);
+}
+.btn-link-primary:hover {
+  color: var(--color-primary-dark);
+}
+
+/* Secondary Link */
+.btn-link-secondary {
+  background-color: var(--gray-600);
+  color: var(--text-light);
+}
+.btn-link-secondary:hover {
+  background-color: var(--gray-400);
+  border-color: var(--gray-600);
+}
+
+/* Success Link */
+.btn-link-success {
+  background-color: var(--color-primary-dark);
+  color: var(--bg-dark);
+}
+.btn-link-success:hover {
+  background-color: var(--color-primary-light);
+  border-color: #1aa34a;
+}
+
+/* Info Link */
+.btn-link-info {
+  background-color: #3b82f6;
+  color: #ffffff;
+}
+.btn-link-info:hover {
+  background-color: #2563eb;
+  border-color: #1e40af;
+}
+
+/* Danger Link */
+.btn-link-danger {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+.btn-link-danger:hover {
+  background-color: #dc2626;
+  border-color: #991b1b;
+}
+
+/* Outline Link */
+.btn-link-outline {
+  background: transparent;
+  border: 1px solid var(--text-muted);
+  color: var(--text-light);
+}
+.btn-link-outline:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary-light);
+}
+
+/* Disabled Link */
+.btn-link-disabled {
+  background-color: var(--bg-card);
+  color: var(--text-muted);
+  pointer-events: none;
+  opacity: 0.6;
 }

@@ -15,6 +15,7 @@ type user ={
 export type playList= {
     name:string;
     totalSongs:number;
+    playlistLink?:string;
 
     /*Change to a context later. just for testing right now */
     makingRequest?:boolean;

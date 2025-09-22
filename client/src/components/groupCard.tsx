@@ -9,8 +9,9 @@ const GroupCards: React.FC<authProps> = ({ user }) => {
     const [makingRequest, setMakingRequest] = useState(false)
     return (
         <div className="groupCards">
-            {userPlayLists.map((item) => (
-               <PlaylistCard name ={item.name} totalSongs={item.totalSongs} makingRequest={makingRequest} setMakingRequest={setMakingRequest}/>
+            {userPlayLists.map((item, index) => (
+               <PlaylistCard key ={index} name ={item.name} totalSongs={item.totalSongs} playlistLink={item.playlistLink}
+                                makingRequest={makingRequest} setMakingRequest={setMakingRequest}/>
             ))}
         </div>
     )

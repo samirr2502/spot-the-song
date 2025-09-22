@@ -1,0 +1,17 @@
+[
+    {
+        "type": "order",
+        "steps": [
+            {
+                "number": 1,
+                "title": "Generate Qr Code",
+                "imgPath": "../../public/generateQR.jpg"
+            },
+            {
+                "number": 2,
+                "title": "Download PDF",
+                "imgPath": "../../public/downloadPDF.jpg"
+            }
+        ]
+    }
+]

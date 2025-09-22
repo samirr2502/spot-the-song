@@ -6,7 +6,7 @@ import { BsQrCodeScan, BsSpotify, BsMusicNote, BsDownload } from "react-icons/bs
 import generateQRCode from '../_actions/genertateQRCode';
 import { useState } from 'react';
 
-const PlaylistCard: React.FC<playList> = ({ name, totalSongs, makingRequest, setMakingRequest }) => {
+const PlaylistCard: React.FC<playList> = ({ name, totalSongs, makingRequest, setMakingRequest, playlistLink}) => {
 
     const TruncatedText: React.FC<{ text: string; limit?: number }> = ({ text, limit = 20 }) => {
         const truncated = text.length > limit ? text.slice(0, limit) + "..." : text;
@@ -43,10 +43,10 @@ const PlaylistCard: React.FC<playList> = ({ name, totalSongs, makingRequest, set
         <div className='card card-playlist'>
             <span className='card-playlist-icon'> <RiPlayListFill /></span>
             <div className={'card-playlist-main'}>
-                <p className='card-playlist-info'>
+                <span className='card-playlist-info'>
                     <TruncatedText text={name} limit={17} />
                     (<BsMusicNote />{totalSongs})
-                </p>
+                </span>
 
                 <div className={`side-menu ${menuOpen ? "open" : ""}`}>
                     <div className='car-playlist-buttons'>
@@ -65,7 +65,8 @@ const PlaylistCard: React.FC<playList> = ({ name, totalSongs, makingRequest, set
                                 <button className="btn btn-success" onClick={() => (handleDownload())}><BsDownload /></button>
                         )
                     }
-                    <button className="btn btn-secondary" ><BsSpotify /> </button>
+
+                    <button className='btn btn-secondary'><a href={`${playlistLink}`} target='_blank'><BsSpotify /></a> </button>
                 </div>
             </div>
 
