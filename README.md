@@ -20,11 +20,17 @@ Order:
     Game Mode:
         * Create a gameroom
         * Access gameroom
+        * Claim Leader
+        * Chagen Status to Ready
+        * Play Game
     Order Mode:
         * Based on a chose playlistt generate printable file wuth [Front] QR code, and [Back] Song info. 
 
 ### Testing 
     Added Login option to simulate Actual login in production
-    Home page looks good. Order page is looking a tiny bit better.
+
+    Home page and order page completed. [Need better mock data]
+
+    Play page. Started
 ### Users can [Delivered]
 
