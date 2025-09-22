@@ -5,12 +5,12 @@
             {
                 "number": 1,
                 "title": "Generate Qr Code",
-                "imgPath": "../../public/generateQR.jpg"
+                "imgPath": "/images/generateQR.jpg"
             },
             {
                 "number": 2,
                 "title": "Download PDF",
-                "imgPath": "../../public/downloadPDF.jpg"
+                "imgPath": "/images/downloadPDF.jpg"
             }
         ]
     }
