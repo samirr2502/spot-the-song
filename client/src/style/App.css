@@ -78,7 +78,7 @@ footer a:hover {
   padding: var(--space-2xl) var(--space-xl);
 }
 
-.home h1 {
+.home h1, .order h1{
   font-size: var(--font-size-10xl);
   margin-bottom: var(--space-xl);
   color: var(--color-primary);
@@ -115,28 +115,61 @@ footer a:hover {
 }
 
 /* === Order & Play Pages === */
-.page-grid {
+.page-grid, .order {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-rows: repeat(auto-fit, minmax(var(--space-md), 1fr));
   gap: var(--space-lg);
   width: 100%;
   max-width: 1200px;
 }
-
-/* .card {
-  background-color: var(--bg-card);
-  padding: var(--space-md);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+.order-groups {
+  display: flex;
+  gap:var(--space-lg);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+/* == ProfileInfo == */
+/* .profile-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.profile-header{
   text-align: center;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background-color: var(--bg-panel);
+  display: column;
+  gap:var(--space-md)
+} */
+.profile-info {
+  /* background: var(--bg-dark, #fff); */
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-lg, 1rem);
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.1));
+
+  
 }
 
-.card:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--shadow-lg); 
+
+.profile-header{
+  /* text-align: center; */
+  background-color: var(--bg-panel);
+  display: flex;
+  flex-direction: column;
+  justify-items: center;
+  justify-content: center;
+  align-items:center ;
+  gap:var(--space-md)
 }
-  */
+
+.groupCards {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-lg, 1.5rem);
+  padding: var(--space-sm);
+}
 
 /* === Utilities === */
 .text-center {

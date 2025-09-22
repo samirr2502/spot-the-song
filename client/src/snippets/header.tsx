@@ -11,16 +11,18 @@ const Header: React.FC<authProps> = ({ auth }) => {
             <NavLink to='/'>
                 Home
             </NavLink>
+
+            <NavLink to='/play'>
+                Play
+            </NavLink>
             {auth &&
                 <>
-                    <NavLink to='/play'>
-                        Play
-                    </NavLink>
                     <NavLink to='/order'>
                         Order
                     </NavLink>
                 </>
             }
+
             <NavLink to='/about'>
                 About
             </NavLink>

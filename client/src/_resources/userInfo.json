@@ -1,7 +1,25 @@
 [
     {
-        "userName":"Samir",
-        "totalPlaylists":2,
-        "songsInFavotites":4
+        "userName": "Samir",
+        "totalPlaylists": 2,
+        "songsInFavotites": 4,
+        "playLists": [
+            {
+                "name": "THIS IS A 30 CHARACTER TEXT@@@",
+                "totalSongs": 10
+            },
+            {
+                "name": "play 2 title long... very long",
+                "totalSongs": 11
+            },
+            {
+                "name": "play3 normal",
+                "totalSongs": 13
+            },
+            {
+                "name": "play 4",
+                "totalSongs": 14
+            }
+        ]
     }
 ]

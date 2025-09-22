@@ -7,6 +7,8 @@ h1 {
   
   h2, h3, h4 {
     color: var(--text-muted);
+    margin: var(--space-sm);
+    padding: var(--space-xs);
   }
   
   h1 { font-size: var(--font-size-2xl); }

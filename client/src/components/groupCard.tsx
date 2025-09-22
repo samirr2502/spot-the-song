@@ -1,19 +1,14 @@
 //Playlist cards 
-import playlists from '../_resources/playlists.json'
 import type { authProps } from '../interfaces/types'
+import PlaylistCard from './playlistCard';
 
-const GroupCards: React.FC<authProps>=({user}) =>{
+const GroupCards: React.FC<authProps> = ({ user }) => {
 
-    const userPlayLists = playlists.filter((item)=>(item.userName === user.userName))
-    return(
+    const userPlayLists = user.playLists;
+    return (
         <div className="groupCards">
-            {userPlayLists.map((item, index)=>(
-                <div className='card card-button' key ={index}>
-                    <h2 className='card-tite'>{item.playListName}</h2>
-                    {item.songs.map((song, index)=>(
-                        <li key ={index}>{song.name}, {song.artist}, {song.year}</li>
-                    ))}
-                </div>
+            {userPlayLists.map((item) => (
+               <PlaylistCard name ={item.name} totalSongs={item.totalSongs}/>
             ))}
         </div>
     )
