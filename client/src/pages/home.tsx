@@ -6,7 +6,7 @@ import type { authProps } from '../interfaces/types'
 const Home: React.FC<authProps> = ({ user, setCurrentUser, auth, setAuth }) => {
     const handleLogin = (setAuth: any, user: any, setUser: any) => {
         setAuth(true);
-        setUser(user[0])
+        setUser(user)
     }
     const handleLogout = (setAuth: any, setUser: any) => {
         setAuth(false);

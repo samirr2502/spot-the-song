@@ -23,7 +23,7 @@ function App() {
         <Header user={currentUser} auth={auth} />
         <main>
           <Routes>
-            <Route path="/" element={<Home user={currentUser} setCurrentUser={setCurrentUser} auth={auth} setAuth={setAuth}/>} />
+            <Route path="/" element={<Home user={user[0]} setCurrentUser={setCurrentUser} auth={auth} setAuth={setAuth}/>} />
             <Route path="/play" element={<Play />} />
             <Route path="/order" element={<Order auth= {auth}user={currentUser} />} />
             <Route path="/about" element={<About />} />

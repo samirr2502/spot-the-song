@@ -25,7 +25,7 @@ const ProfileInfo: React.FC<authProps> = ({ user }) => {
                     <div className="card-body">
                         <span>Total playlists: </span><br />
                         <span>Total songs in Favorites: </span>
-                        <GroupCards user={user} />
+                        {/* <GroupCards user={user} /> */}
                     </div>
                 </div>
         </div>
