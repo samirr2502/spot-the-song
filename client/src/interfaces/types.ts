@@ -21,3 +21,13 @@ export type playList= {
     makingRequest?:boolean;
     setMakingRequest?:any
 }
+
+export type sessions ={
+    groupNumber:number
+    sessions?:session[]
+}
+export type session = {
+    number:number;
+    user: string;
+    active?:boolean
+}

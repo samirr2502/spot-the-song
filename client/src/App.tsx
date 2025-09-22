@@ -4,6 +4,8 @@ import Home from './pages/home'
 import NotFound from './pages/notFound'
 import Order from './pages/order'
 import Play from './pages/play'
+import Room from './pages/room'
+
 import Footer from './snippets/footer'
 import Header from './snippets/header'
 import './style/App.css'
@@ -29,6 +31,7 @@ function App() {
             <Route path="/play" element={<Play />} />
             <Route path="/order" element={<Order auth= {auth}user={currentUser} />} />
             <Route path="/about" element={<About />} />
+            <Route path="/room/:groupNumber" element={<Room groupNumber={1}/>}/>
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
