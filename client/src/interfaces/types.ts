@@ -3,6 +3,7 @@ export interface authProps {
     setCurrentUser?:any;
     auth?:boolean;
     setAuth?:any;
+    makingRequest?:boolean
 }
 
 type user ={
@@ -12,6 +13,10 @@ type user ={
     playLists:playList[]
 }
 export type playList= {
-    name:string,
-    totalSongs:number
+    name:string;
+    totalSongs:number;
+
+    /*Change to a context later. just for testing right now */
+    makingRequest?:boolean;
+    setMakingRequest?:any
 }

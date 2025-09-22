@@ -35,11 +35,11 @@ button,
 
 /* Success (green accent) */
 .btn-success {
-  background-color: #1ed760; /* brighter green */
+  background-color: var(--color-primary-dark); /* brighter green */
   color: var(--bg-dark);
 }
 .btn-success:hover {
-  background-color: #1db954; /* brand green */
+  background-color: var(--color-primary-light); /* brand green */
   border-color: #1aa34a;
 }
 
@@ -51,6 +51,10 @@ button,
 .btn-info:hover {
   background-color: #2563eb;
   border-color: #1e40af;
+}
+/* Info (blue accent) */
+.btn-disabled {
+  background-color: var(--bg-card)
 }
 
 /* Danger (red accent) */

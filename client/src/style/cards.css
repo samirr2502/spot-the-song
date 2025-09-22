@@ -87,12 +87,13 @@
 }
 
 .card-playlist .btn {
-  background: var(--bg-card);
+  /* background: var(--bg-card); */
   border: none;
   color: var(--text-light);
   cursor: pointer;
   padding: var(--space-sm) var(--space-md-sm);
   border-radius: 4px;
+  
 }
 /* Sliding side menu */
 .side-menu {
