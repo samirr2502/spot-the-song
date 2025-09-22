@@ -2,7 +2,7 @@ import { NavLink } from "react-router-dom"
 import type { authProps } from "../interfaces/types"
 
 
-const Header: React.FC<authProps> = ({ auth }) => {
+const Header: React.FC<authProps> = ({ user, auth }) => {
     return (
         <header>
             <span className="logo">
@@ -15,7 +15,7 @@ const Header: React.FC<authProps> = ({ auth }) => {
             <NavLink to='/play'>
                 Play
             </NavLink>
-            {auth &&
+            {auth &&user &&
                 <>
                     <NavLink to='/order'>
                         Order

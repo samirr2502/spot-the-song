@@ -15,15 +15,15 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import user from './_resources/userInfo.json'
 function App() {
   const [auth, setAuth] = useState(false)
-  const [currentUser, setCurrentUser] = useState({})
+  const [currentUser, setCurrentUser] = useState(user[0])
 
   return (
     <>
       <BrowserRouter>
-        <Header auth={auth} />
+        <Header user={currentUser} auth={auth} />
         <main>
           <Routes>
-            <Route path="/" element={<Home user={user} setCurrentUser={setCurrentUser} auth={auth} setAuth={setAuth}/>} />
+            <Route path="/" element={<Home user={currentUser} setCurrentUser={setCurrentUser} auth={auth} setAuth={setAuth}/>} />
             <Route path="/play" element={<Play />} />
             <Route path="/order" element={<Order auth= {auth}user={currentUser} />} />
             <Route path="/about" element={<About />} />
