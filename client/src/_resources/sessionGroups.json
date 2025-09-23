@@ -3,22 +3,24 @@
         "groupNumber": 1,
         "sessions": [
             {
-                "number": 1,
+                "id": 1,
                 "user": "guestA",
                 "active": true
             },
             {
-                "number": 2,
+                "id": 2,
                 "user": "guestB",
                 "active": false
             },
             {
-                "number": 3,
-                "user": "guestC"
+                "id": 3,
+                "user": "guestC",
+                "active": false
             },
             {
-                "number": 4,
-                "user": "guestD"
+                "id": 4,
+                "user": "guestD",
+                "active": false
             }
         ]
     },
@@ -26,8 +28,9 @@
         "groupNumber": 2,
         "sessions": [
             {
-                "number": 5,
-                "user": "guestE"
+                "id": 5,
+                "user": "guestE",
+                "active": true
             }
         ]
     }

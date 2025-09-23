@@ -27,7 +27,7 @@ export type sessions ={
     sessions?:session[]
 }
 export type session = {
-    number:number;
+    id:number;
     user: string;
     active?:boolean
 }

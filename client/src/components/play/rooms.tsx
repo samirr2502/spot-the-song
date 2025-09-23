@@ -1,5 +1,5 @@
 import RoomCard from "./roomCard"
-import sessionGroups from '../../_resources/sessions.json'
+import sessionGroups from '../../_resources/sessionGroups.json'
 
 
 const Rooms: React.FC<{}> = ()=>{

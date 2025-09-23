@@ -31,7 +31,7 @@ function App() {
             <Route path="/play" element={<Play />} />
             <Route path="/order" element={<Order auth= {auth}user={currentUser} />} />
             <Route path="/about" element={<About />} />
-            <Route path="/room/:groupNumber" element={<Room groupNumber={1}/>}/>
+            <Route path="/room/:groupNumber" element={<Room />}/>
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>

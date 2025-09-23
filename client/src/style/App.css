@@ -115,7 +115,7 @@ footer a:hover {
 }
 
 /* === Order & Play Pages === */
-.page-grid, .order {
+.page-grid, .order, .room-page{
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -128,6 +128,19 @@ footer a:hover {
   gap:var(--space-lg);
   justify-content: center;
   flex-wrap: wrap;
+}
+.room-sections{
+  display: flex;
+  gap:var(--space-lg);
+  justify-content: center;
+
+  flex-wrap: wrap;
+  width: 100%;
+  .section-players{
+    display: flex;
+    flex: 1 1 100%;
+    justify-content: center;
+  }
 }
 
 .profile-info {

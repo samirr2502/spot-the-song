@@ -1,7 +1,7 @@
 const CurrentPlayer:React.FC<{}>=()=>{
     return(
         <div>
-            Current Player
+            <h2>Current Player</h2>
         </div>
     )
 }
