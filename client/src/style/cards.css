@@ -45,7 +45,7 @@
   box-shadow: var(--shadow-lg);
 }
 
-.card-playlist {
+.card-playlist, .card-room {
   display: flex;
   /* gap: var(--space-sm); */
   padding: 0;
@@ -55,7 +55,7 @@
 
 }
 
-.card-playlist-icon {
+.card-playlist-icon, .card-room-icon {
   flex: 0 0 20%;
   background-color: var(--bg-panel);
   font-size: var(--font-size-xl);
@@ -67,7 +67,7 @@
   align-items: center;
 }
 
-.card-playlist-main {
+.card-playlist-main, .card-room-main {
   flex: 0 0 80%;
   height:100%;
   display: flex;
@@ -76,7 +76,7 @@
 
 }
 
-.card-playlist-info  {
+.card-playlist-info, .card-room-info {
   flex: 0 0 78%;
   display: flex;
   align-items: center;
@@ -86,7 +86,8 @@
   }
 }
 
-.card-playlist .btn {
+
+.card-playlist .btn, .card-room .btn {
   /* background: var(--bg-card); */
   border: none;
   color: var(--text-light);
@@ -113,6 +114,9 @@
 .side-menu.open {
   right: 35%; /* ✅ slide in */
 }
+
+
+/* === Room Card === */
 
 /* === Banner Card === */
 .card-banner {

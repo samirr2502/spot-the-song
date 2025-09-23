@@ -31,3 +31,12 @@ export type session = {
     user: string;
     active?:boolean
 }
+export type Player = {
+    id: number;
+    user: string;
+    active: boolean;
+}
+
+export type PlayersProps ={
+    players: Player[];
+}

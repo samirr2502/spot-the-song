@@ -49,12 +49,10 @@ const PlaylistCard: React.FC<playList> = ({ name, totalSongs, makingRequest, set
                 </span>
 
                 <div className={`side-menu ${menuOpen ? "open" : ""}`}>
-                    <div className='car-playlist-buttons'>
 
                         <button onClick={() => setMenuOpen(!menuOpen)} className="btn btn-secondary">
                             {menuOpen ? ">" : "<"}
                         </button>
-                    </div>
 
                     {loading || makingRequest? 
                     (<button className='btn btn-disabled' disabled>...</button>) :

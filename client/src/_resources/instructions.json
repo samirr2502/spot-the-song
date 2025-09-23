@@ -13,5 +13,20 @@
                 "imgPath": "/images/downloadPDF.jpg"
             }
         ]
+    },
+    {
+        "type": "join room",
+        "steps": [
+            {
+                "number": 1,
+                "title": "Join Room",
+                "imgPath": "/images/generateQR.jpg"
+            },
+            {
+                "number": 2,
+                "title": "Playlist",
+                "imgPath": "/images/downloadPDF.jpg"
+            }
+        ]
     }
 ]
