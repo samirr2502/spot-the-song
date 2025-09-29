@@ -57,7 +57,7 @@ export class TestData {
         return songsData;
     }
     findSongById = (id: number) => {
-        return songsData.find((song: { song_id: number; }) => song.song_id === id);
+        return songsData.find((song: { id: number; }) => song.id === id);
     }
     //Users
     findUsers = () => {

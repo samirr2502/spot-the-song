@@ -1,5 +1,5 @@
 [{
-    "song_id": 1,
+    "id": 1,
     "title": "Shape of You",
     "artist": "Ed Sheeran",
     "album": "Divide",
@@ -7,7 +7,7 @@
     "file_path":"../testSongs/retro-lounge-389644.mp3"
 },
 {
-    "song_id": 2,
+    "id": 2,
     "title": "Name of the Wind",
     "artist": "Someone",
     "album": "The Next Album",
@@ -16,7 +16,7 @@
 
 },
 {
-    "song_id": 3,
+    "id": 3,
     "title": "Song3",
     "artist": "Artist3",
     "album": "Album3",
@@ -25,7 +25,7 @@
 
 },
 {
-    "song_id": 4,
+    "id": 4,
     "title": "Song4",
     "artist": "Artist4",
     "album": "Album4",
@@ -34,7 +34,7 @@
 
 },
 {
-    "song_id": 5,
+    "id": 5,
     "title": "Song5",
     "artist": "Artist5",
     "album": "Album5",
@@ -43,7 +43,7 @@
 
 },
 {
-    "song_id": 6,
+    "id": 6,
     "title": "Song6",
     "artist": "Artist6",
     "album": "Album6",

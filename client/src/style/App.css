@@ -78,7 +78,7 @@ footer a:hover {
   padding: var(--space-2xl) var(--space-xl);
 }
 
-.home h1{
+.home h1 {
   font-size: var(--font-size-10xl);
   margin-bottom: var(--space-xl);
   color: var(--color-primary);
@@ -115,7 +115,9 @@ footer a:hover {
 }
 
 /* === Order & Play Pages === */
-.page-grid, .order, .room-page{
+.page-grid,
+.order,
+.room-page {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -123,20 +125,23 @@ footer a:hover {
   width: 100%;
   max-width: 1200px;
 }
+
 .order-groups {
   display: flex;
-  gap:var(--space-lg);
+  gap: var(--space-lg);
   justify-content: center;
   flex-wrap: wrap;
 }
-.room-sections{
+
+.room-sections {
   display: flex;
-  gap:var(--space-lg);
+  gap: var(--space-lg);
   justify-content: center;
 
   flex-wrap: wrap;
   width: 100%;
-  .section-players{
+
+  .section-players {
     display: flex;
     flex: 1 1 100%;
     justify-content: center;
@@ -149,25 +154,28 @@ footer a:hover {
   flex-direction: column;
   border-radius: var(--radius-lg, 1rem);
   box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.1));
-  gap:var(--space-md)
+  gap: var(--space-md)
 }
 
 
-.profile-header, .rooms-header {
+.profile-header,
+.rooms-header {
   /* text-align: center; */
   background-color: var(--bg-panel);
   display: flex;
   flex-direction: column;
   justify-items: center;
   justify-content: center;
-  align-items:center ;
-  gap:var(--space-md);
+  align-items: center;
+  gap: var(--space-md);
   padding: var(--space-md);
 }
-.rooms-buttons{
+
+.rooms-buttons {
   display: flex;
   gap: var(--space-md);
 }
+
 .group-cards {
   display: flex;
   flex-direction: column;
@@ -176,6 +184,8 @@ footer a:hover {
   gap: var(--space-lg, 1.5rem);
   padding: var(--space-sm);
 }
+
+/*play*/
 
 .players-list {
   display: flex;
@@ -187,10 +197,38 @@ footer a:hover {
   padding: var(--space-sm);
 }
 
+.guess-group {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-sm);
+  justify-content: center;
+  width: 100%;
+}
+
+.song-list-item{
+  padding: var(--space-sm) var(--space-md);
+  background-color: var(--bg-panel);
+  margin: var(--space-sm) 0;
+  cursor: grab;
+  border-radius: var(--space-sm);
+  &:hover{
+    background-color: var(--color-primary-light);
+  }
+  &:active{
+    cursor: grabbing;
+    background-color: var(--color-primary);
+
+  }
+}
 /* === Utilities === */
 .text-center {
   text-align: center;
 }
 
-.mt-lg { margin-top: var(--space-lg); }
-.mt-xl { margin-top: var(--space-xl); }
+.mt-lg {
+  margin-top: var(--space-lg);
+}
+
+.mt-xl {
+  margin-top: var(--space-xl);
+}
