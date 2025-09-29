@@ -2,13 +2,13 @@ import React from 'react';
 import type { Player } from '../../interfaces/types';
 
 type PlayerCardProps = {
-    player: Player;
+    player: any;
 };
 
-const PlayerCard: React.FC<PlayerCardProps> = ({ player }) => {
+const PlayerCard = (props:PlayerCardProps) => {
     return (
         <div className="card player-card">
-            <h3>{player.user}</h3>
+            <h3>{props.player!.name}</h3>
         </div>
     );
 };

@@ -1,0 +1,29 @@
+[{
+    "game_song_id" : 1,
+    "song_id" : 1,
+    "game_id" : 1,
+    "player_id" : 1
+}
+,{
+    "game_song_id" : 2,
+    "song_id" : 2,
+    "game_id" : 1,
+    "player_id" : 1
+},{
+    "game_song_id" : 3,
+    "song_id" : 3,
+    "game_id" : 1,
+    "player_id" : 1
+},
+{
+    "game_song_id" : 4,
+    "song_id" : 4,
+    "game_id" : 1,
+    "player_id" : 1
+},{
+    "game_song_id" : 5,
+    "song_id" : 5,
+    "game_id" : 1,
+    "player_id" : 1
+}
+]

@@ -14,27 +14,30 @@ import './style/elements.css'
 import './style/buttons.css'
 import './style/cards.css'
 import './style/popup.css'
-
+import '../src/_actions/TestData'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import user from './_resources/userInfo.json'
+import { TestDataServiceProvider } from "./TestDataContext";
+
 function App() {
   const [auth, setAuth] = useState(false)
   const [currentUser, setCurrentUser] = useState(user[0])
-
   return (
     <>
       <BrowserRouter>
         <Header user={currentUser} auth={auth} />
-        <main>
-          <Routes>
-            <Route path="/" element={<Home user={user[0]} setCurrentUser={setCurrentUser} auth={auth} setAuth={setAuth}/>} />
-            <Route path="/play" element={<Play />} />
-            <Route path="/order" element={<Order auth= {auth}user={currentUser} />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/room/:groupNumber" element={<Room />}/>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </main>
+        <TestDataServiceProvider>
+          <main>
+            <Routes>
+              <Route path="/" element={<Home user={user[0]} setCurrentUser={setCurrentUser} auth={auth} setAuth={setAuth} />} />
+              <Route path="/play" element={<Play />} />
+              <Route path="/order" element={<Order auth={auth} user={currentUser} />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/room/:groupNumber" element={<Room />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </main>
+        </TestDataServiceProvider>
 
         <Footer />
       </BrowserRouter>

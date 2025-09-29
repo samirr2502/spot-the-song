@@ -1,4 +1,5 @@
 import Rooms from "../components/play/rooms"
+
 function Play(){
     return (
         <div className="play">

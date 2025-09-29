@@ -23,8 +23,7 @@ export type playList= {
 }
 
 export type sessions ={
-    groupNumber:number
-    sessions?:session[]
+    
 }
 export type session = {
     id:number;

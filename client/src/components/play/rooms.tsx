@@ -1,11 +1,12 @@
 import RoomCard from "./roomCard"
-import sessionGroups from '../../_resources/sessionGroups.json'
 import { useState } from "react"
 import Popup from "../../snippets/popupLayout"
 import instructions from "../../_resources/instructions.json"
-
+import { useTestDataService } from "../../TestDataContext"
 const Rooms: React.FC<{}> = ()=>{
     const [open, setOpen] = useState(false);
+    const testDataService = useTestDataService();
+    const rooms = testDataService.findRooms();
     const handleCreateRoom = () => {
         // Logic to create a new room
         console.log('Creating a new room');
@@ -33,8 +34,8 @@ return(
         </div>
         <div className="group-cards">
             
-            {sessionGroups.map((item, index)=>(
-                <RoomCard key= {index} groupNumber={item.groupNumber} />
+            {rooms.map((item, index)=>(
+                <RoomCard key= {index} groupNumber={item.room_id} />
             ))}
         </div>
     </div>

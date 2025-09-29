@@ -1,0 +1,28 @@
+[
+    {
+        "auuth_id": 1,
+        "token": "token_guestA_123",
+        "websocket_session_id": 1
+    },
+    {
+        "auuth_id": 5,
+        "token": "token_guestA_123",
+        "websocket_session_id": false
+    },
+    {
+        "auuth_id": 2,
+        "token": "token_guestB_456"
+    },
+    {
+        "auuth_id": 3,
+        "token": "token_guestC_789"
+    },
+    {
+        "auuth_id": 4,
+        "token": "token_guestD_101"
+    },
+    {
+        "auuth_id": 5,
+        "token": "token_guestE_112"
+    }
+]

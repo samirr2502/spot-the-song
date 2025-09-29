@@ -1,5 +1,9 @@
 
-const PlayerSongs: React.FC = () => {
+import playerSongs from '../../_resources/test_data/playData/playerSongs.json'
+interface Props {
+    // Define any props if needed
+}
+const PlayerSongs= (props:Props) => {
     
     return (
         <div className="player-songs">
