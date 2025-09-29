@@ -3,6 +3,7 @@
     "player_id" : 1,
     "current_session_id": 1,
     "last_room_id":1,
+    "game_id":1,
     "songs_ids":[1,2,3],
     "points":3
 },
@@ -11,6 +12,8 @@
     "player_id" : 2,
     "current_session_id": 2,
     "last_room_id":1,
+        "game_id":1,
+
     "songs_ids":[4,5],
     "points":1
 },
@@ -19,6 +22,8 @@
     "player_id" : 3,
     "current_session_id": 3,
     "last_room_id":1,
+        "game_id":1,
+
     "songs_ids":[6,7],
     "points":0
 },
@@ -27,6 +32,8 @@
     "player_id" : 4,
     "current_session_id": 4,
     "last_room_id":1,
+        "game_id":1,
+
     "songs_ids":[8,9],
     "points":2
 },
@@ -35,6 +42,8 @@
     "player_id" : 5,
     "current_session_id": 5,
     "last_room_id":1,
+        "game_id":1,
+
     "songs_ids":[10],
     "points":0
 }

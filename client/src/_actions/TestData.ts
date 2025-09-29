@@ -7,81 +7,97 @@ import gamesData from '../_resources/test_data/game/games.json';
 import turnsData from '../_resources/test_data/game/turns.json';
 import game_songsData from '../_resources/test_data/game/game_songs.json';
 import sessionsData from '../_resources/test_data/user/websocket_sessions.json';
-import gameStatsData from '../_resources/test_data/player/gameStats.json';
+import gameStatsData from '../_resources/test_data/player/game_stats.json';
 import playlistsData from '../_resources/test_data/songs/playlists.json';
 import songsData from '../_resources/test_data/songs/songs.json';
 
-export class TestData{
+export class TestData {
 
     //Rooms
-    findRooms= () =>{
+    findRooms = () => {
         return roomsData;
     }
-    findRoomById= (room_id: number) =>{
+    findRoomById = (room_id: number) => {
         return roomsData.find((room: { room_id: number; }) => room.room_id === room_id);
     }
     //Games
-    findGames= () =>{
+    findGames = () => {
         return gamesData;
     }
-    findGameByRoomId= (room_id: number) =>{
+    findGameById =(game_id:number)=>{
+        return gamesData.find((game:{game_id:number})=>game.game_id===game_id)
+    }
+    findGameByRoomId = (room_id: number) => {
         return gamesData.find((game: { room_id: number; }) => game.room_id === room_id);
     }
+
     //Turns
-    findTurns= () =>{
+    findTurns = () => {
         return turnsData;
     }
-    findTurnByGameId= (game_id: number) =>{
+    findTurnByGameId = (game_id: number) => {
         return turnsData.find((turn: { game_id: number; }) => turn.game_id === game_id);
     }
     //Game Songs
-    findGameSongs= () =>{
+    findGameSongs = () => {
         return game_songsData;
     }
-    findGameSongsByGameId= (game_id: number) =>{
+    findGameSongsByGameId = (game_id: number) => {
         return game_songsData.filter((game_song: { game_id: number; }) => game_song.game_id === game_id);
     }
+
+    findGameSongById = (id: number) => {
+        return game_songsData.find((game_song: { game_song_id: number; }) => game_song.game_song_id === id);
+    }
+    findGameSongBySongId = (song_id: number) => {
+        return game_songsData.find((game_song: { song_id: number; }) => game_song.song_id === song_id);
+    }
     //Songs
-    findSongs= () =>{
+    findSongs = () => {
         return songsData;
     }
-    findSongById= (id: number) =>{
+    findSongById = (id: number) => {
         return songsData.find((song: { song_id: number; }) => song.song_id === id);
     }
     //Users
-    findUsers= () =>{
-        return usersData;  
+    findUsers = () => {
+        return usersData;
     }
-    findUserById= (id: number) =>{
+    findUserById = (id: number) => {
         return usersData.find((user: { user_id: number; }) => user.user_id === id);
     }
     //Players
-    findPlayers= () =>{
+    findPlayers = () => {
         return playersData;
     }
-    findPlayerById= (id: number) =>{
+    findPlayerById = (id: number) => {
         return playersData.find((player: { player_id: number; }) => player.player_id === id);
     }
 
     //Sessions
-    findSessions= () =>{
+    findSessions = () => {
         return sessionsData;
     }
-    findSessionByRoomId= (room_id: number) =>{
+    findSessionByRoomId = (room_id: number) => {
         return sessionsData.filter((session: { room_id: number; }) => session.room_id === room_id);
     }
     //Game Stats
-    findGameStats= () =>{
+    findGameStats = () => {
         return gameStatsData;
     }
-    findGameStatById= (id: number) =>{
+    findGameStatById = (id: number) => {
         return gameStatsData.find((gameStat: { game_stat_id: number; }) => gameStat.game_stat_id === id);
     }
+    findGameStatByGameIdPersonId = (game_id: number, player_id: number) => {
+        return gameStatsData.find((gameStat: { game_id: number; player_id: number }) =>
+            gameStat.game_id === game_id && gameStat.player_id === player_id)
+    }
+
     //Playlists 
-    findPlaylists= () =>{
+    findPlaylists = () => {
         return playlistsData;
     }
-    findPlaylistById= (id: number) =>{
+    findPlaylistById = (id: number) => {
         return playlistsData.find((playlist: { playlist_id: number; }) => playlist.playlist_id === id);
     }
 
