@@ -30,7 +30,6 @@ jobs:
 
       - name: Install dependencies and build
         run: |
-          cd client
           npm ci
           npm run build
           cp dist/index.html dist/404.html
@@ -38,7 +37,7 @@ jobs:
       - name: Upload built site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: client/dist
+          path: dist
 
   deploy:
     name: Deploy to GitHub Pages

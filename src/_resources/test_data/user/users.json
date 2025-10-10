@@ -1,0 +1,30 @@
+[{
+    "user_id":1,
+    "username":"guestA",
+    "password":"guestA",
+    "player_id":1
+},
+{
+    "user_id":2,
+    "username":"guestB",
+    "password":"guestB",
+    "player_id":2
+},
+{
+    "user_id":3,
+    "username":"guestC",
+    "password":"guestC",
+    "player_id":3
+},
+{
+    "user_id":4,
+    "username":"guestD",
+    "password":"guestD",
+    "player_id":4
+},
+{
+    "user_id":5,
+    "username":"guestE",
+    "password":"guestE",
+    "player_id":5
+}]

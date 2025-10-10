@@ -1,0 +1,26 @@
+[{
+    "turn_id" : 1,
+    "game_id" : 1,
+    "current_player_id" : 2,
+    "current_game_stat_id" : 2,
+    "status" : "active",
+    "game_song_id" : 1,
+    "correct_song_order":[1,2,3],
+    "player_attempted_order": [1,3,2],
+    "options_title" : ["Song1","Song2","Song3"],
+    "options_artist" : ["Artist1","Artist2","Artist3"]
+},
+{
+    "turn_id" : 2,
+    "game_id" : 2,
+    "current_player_id" : null,
+    "current_game_stat_id" : 2,
+
+    "status" : "waiting",
+    "game_song_id" : null,
+    "correct_song_order":[],
+    "player_attempted_order": [],
+    "options_title" : [],
+    "options_artist" : []
+}
+]

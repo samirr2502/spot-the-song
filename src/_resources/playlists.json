@@ -1,0 +1,70 @@
+[
+    {
+        "userName":"Samir",
+        "playListName":"p1",
+        "songs":[
+            {
+                "name":"Don't stop believing",
+                "artist":"BonJovi",
+                "year":1990,
+                "durationMin":2.4
+            },
+            {
+                "name":"Piano Man",
+                "artist":"Bryan Adams",
+                "year":1980
+            }
+        ]
+    },
+    {
+        "userName":"Samir",
+        "playListName":"spanish",
+        "songs":[
+            {
+                "name":"Eo",
+                "artist":"Conejo Malo",
+                "year":2025,
+                "durationMin":2.5
+            },
+            {
+                "name":"Favorito",
+                "artist":"Camilo",
+                "year":2020
+            }
+        ]
+    },
+    {
+        "userName":"Samir",
+        "playListName":"p1",
+        "songs":[
+            {
+                "name":"Don't stop believing",
+                "artist":"BonJovi",
+                "year":1990,
+                "durationMin":2.4
+            },
+            {
+                "name":"Piano Man",
+                "artist":"Bryan Adams",
+                "year":1980
+            }
+        ]
+    },
+    {
+        "userName":"Samir",
+        "playListName":"spanish",
+        "songs":[
+            {
+                "name":"Eo",
+                "artist":"Conejo Malo",
+                "year":2025,
+                "durationMin":2.5
+            },
+            {
+                "name":"Favorito",
+                "artist":"Camilo",
+                "year":2020
+            }
+        ]
+    }
+]

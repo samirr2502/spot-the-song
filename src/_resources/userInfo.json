@@ -1,0 +1,26 @@
+[
+    {
+        "userName": "Guest",
+        "totalPlaylists": 2,
+        "songsInFavorites": 4,
+        "playLists": [
+            {
+                "name": "THIS IS A 30 CHARACTER TEXT@@@",
+                "totalSongs": 10,
+                "playlistLink":"https://open.spotify.com/playlist/516zfhdPyMGGEXucyTdlcu"
+            },
+            {
+                "name": "play 2 title long... very long",
+                "totalSongs": 11
+            },
+            {
+                "name": "play3 normal",
+                "totalSongs": 13
+            },
+            {
+                "name": "play 4",
+                "totalSongs": 14
+            }
+        ]
+    }
+]
