@@ -30,7 +30,6 @@ jobs:
 
       - name: Install dependencies and build
         run: |
-          npm ci
           npm run build
           cp dist/index.html dist/404.html
 
