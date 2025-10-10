@@ -10,7 +10,7 @@ import {
     useSensors,
     closestCorners,
 } from "@dnd-kit/core";
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import SongListItem from "./songListItem";
 import type { DragEndEvent, UniqueIdentifier } from "@dnd-kit/core";
 

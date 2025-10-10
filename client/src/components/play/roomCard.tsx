@@ -1,4 +1,3 @@
-import type { sessions } from "../../interfaces/types"
 import { useNavigate } from 'react-router-dom';
 import { TbDoorEnter } from "react-icons/tb";
 import { useState } from "react";

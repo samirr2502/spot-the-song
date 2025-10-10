@@ -1,5 +1,4 @@
-import React from 'react';
-import type { Player } from '../../interfaces/types';
+
 
 type PlayerCardProps = {
     player: any;
