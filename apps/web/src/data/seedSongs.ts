@@ -9,6 +9,7 @@ export const SEED_SONGS: Song[] = [
     artist: 'Ed Sheeran',
     album: 'Divide',
     audioUrl: `${AUDIO_BASE}/SoundHelix-Song-1.mp3`,
+    releaseYear: 2017,
   },
   {
     id: 'seed_2',
@@ -16,6 +17,7 @@ export const SEED_SONGS: Song[] = [
     artist: 'The Weeknd',
     album: 'After Hours',
     audioUrl: `${AUDIO_BASE}/SoundHelix-Song-2.mp3`,
+    releaseYear: 2020,
   },
   {
     id: 'seed_3',
@@ -23,6 +25,7 @@ export const SEED_SONGS: Song[] = [
     artist: 'Dua Lipa',
     album: 'Future Nostalgia',
     audioUrl: `${AUDIO_BASE}/SoundHelix-Song-3.mp3`,
+    releaseYear: 2020,
   },
   {
     id: 'seed_4',
@@ -30,6 +33,7 @@ export const SEED_SONGS: Song[] = [
     artist: 'Billie Eilish',
     album: 'When We All Fall Asleep',
     audioUrl: `${AUDIO_BASE}/SoundHelix-Song-4.mp3`,
+    releaseYear: 2019,
   },
   {
     id: 'seed_5',
@@ -37,6 +41,7 @@ export const SEED_SONGS: Song[] = [
     artist: 'Bruno Mars',
     album: 'Uptown Special',
     audioUrl: `${AUDIO_BASE}/SoundHelix-Song-5.mp3`,
+    releaseYear: 2014,
   },
   {
     id: 'seed_6',
@@ -44,6 +49,7 @@ export const SEED_SONGS: Song[] = [
     artist: 'Adele',
     album: '21',
     audioUrl: `${AUDIO_BASE}/SoundHelix-Song-6.mp3`,
+    releaseYear: 2010,
   },
 ]
 

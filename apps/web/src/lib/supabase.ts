@@ -1,7 +1,13 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 export type RoomMode = 'local' | 'online'
-export type RoomPhase = 'lobby' | 'playing' | 'reveal' | 'finished'
+export type RoomPhase =
+  | 'lobby'
+  | 'playing'
+  | 'placement'
+  | 'challenge'
+  | 'reveal'
+  | 'finished'
 
 export type DbRoom = {
   id: string
@@ -25,6 +31,7 @@ export type DbRoomPlayer = {
   turn_order: number
   is_host: boolean
   connected_at: string
+  coins: number
 }
 
 export type DbAlbum = {
@@ -40,6 +47,7 @@ export type DbSong = {
   title: string
   artist: string
   audio_url: string
+  release_year: number
 }
 
 export type DbGameDeck = {
@@ -59,6 +67,23 @@ export type DbTurn = {
   is_correct: boolean | null
   started_at: string
   ended_at: string | null
+  claimed_slot: number | null
+  insert_index?: number | null
+  challenger_player_id: string | null
+  claim_awarded_to: string | null
+  claim_discarded: boolean
+}
+
+export type DbTimelineCard = {
+  id: string
+  room_id: string
+  player_id: string
+  song_id: string
+  slot_index?: number
+  position: number
+  is_starter: boolean
+  is_guessed: boolean
+  is_revealed: boolean
 }
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL

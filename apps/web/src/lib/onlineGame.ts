@@ -1,16 +1,79 @@
 import type { Album, Song } from '@spot-the-song/game-engine'
-import { shuffleArray } from '@spot-the-song/game-engine'
+import {
+  findCorrectInsertIndex,
+  GUESS_REWARD_COINS,
+  isPlacementCorrect,
+  shuffleArray,
+  STARTING_COINS,
+  CHALLENGE_COST,
+} from '@spot-the-song/game-engine'
 import {
   DbAlbum,
   DbGameDeck,
   DbRoom,
   DbRoomPlayer,
   DbSong,
+  DbTimelineCard,
   DbTurn,
   generateRoomCode,
   getPlayerSessionId,
   supabase,
 } from './supabase'
+
+function getTurnInsertIndex(turn: DbTurn): number | null {
+  return turn.insert_index ?? turn.claimed_slot ?? null
+}
+
+function getCardPosition(card: DbTimelineCard): number {
+  return card.position ?? card.slot_index ?? 0
+}
+
+function buildOrderedSongIds(cards: DbTimelineCard[], playerId: string): string[] {
+  return cards
+    .filter((card) => card.player_id === playerId)
+    .sort((a, b) => getCardPosition(a) - getCardPosition(b))
+    .map((card) => card.song_id)
+}
+
+async function insertTimelineCardAt(
+  roomId: string,
+  playerId: string,
+  songId: string,
+  insertIndex: number,
+  isStarter = false,
+  isGuessed = false,
+  isRevealed = false,
+  existingCards: DbTimelineCard[] = [],
+) {
+  if (!supabase) throw new Error('Supabase is not configured')
+
+  const playerCards = existingCards
+    .filter((card) => card.player_id === playerId)
+    .sort((a, b) => getCardPosition(b) - getCardPosition(a))
+
+  for (const card of playerCards) {
+    if (getCardPosition(card) >= insertIndex) {
+      const { error } = await supabase
+        .from('player_timeline_cards')
+        .update({ position: getCardPosition(card) + 1 })
+        .eq('id', card.id)
+
+      if (error) throw error
+    }
+  }
+
+  const { error } = await supabase.from('player_timeline_cards').insert({
+    room_id: roomId,
+    player_id: playerId,
+    song_id: songId,
+    position: insertIndex,
+    is_starter: isStarter,
+    is_guessed: isGuessed,
+    is_revealed: isRevealed,
+  })
+
+  if (error) throw error
+}
 
 export async function createRoom(hostName: string) {
   if (!supabase) throw new Error('Supabase is not configured')
@@ -39,6 +102,7 @@ export async function createRoom(hostName: string) {
     score: 0,
     turn_order: 0,
     is_host: true,
+    coins: STARTING_COINS,
   })
 
   if (playerError) throw playerError
@@ -80,6 +144,7 @@ export async function joinRoom(code: string, playerName: string) {
       score: 0,
       turn_order: count ?? 0,
       is_host: false,
+      coins: STARTING_COINS,
     })
 
     if (playerError) throw playerError
@@ -91,7 +156,7 @@ export async function joinRoom(code: string, playerName: string) {
 export async function fetchRoomState(roomId: string) {
   if (!supabase) throw new Error('Supabase is not configured')
 
-  const [roomRes, playersRes, albumsRes, deckRes, turnRes] =
+  const [roomRes, playersRes, albumsRes, deckRes, turnRes, timelineRes] =
     await Promise.all([
       supabase.from('rooms').select('*').eq('id', roomId).single(),
       supabase
@@ -112,6 +177,7 @@ export async function fetchRoomState(roomId: string) {
         .order('started_at', { ascending: false })
         .limit(1)
         .maybeSingle(),
+      supabase.from('player_timeline_cards').select('*').eq('room_id', roomId),
     ])
 
   if (roomRes.error || !roomRes.data) throw roomRes.error ?? new Error('Room not found')
@@ -131,6 +197,7 @@ export async function fetchRoomState(roomId: string) {
     songs,
     deck: (deckRes.data ?? []) as DbGameDeck[],
     currentTurn: (turnRes.data ?? null) as DbTurn | null,
+    timelineCards: (timelineRes.data ?? []) as DbTimelineCard[],
   }
 }
 
@@ -158,6 +225,7 @@ export async function addAlbumToRoom(
     title: song.title,
     artist: song.artist,
     audio_url: song.audioUrl,
+    release_year: song.releaseYear,
   }))
 
   const { error: songsError } = await supabase.from('songs').insert(songRows)
@@ -172,12 +240,16 @@ export async function startOnlineGame(roomId: string, hostPlayerId: string) {
     throw new Error('Only the host can start the game')
   }
 
-  const songIds = shuffleArray(state.songs.map((song) => song.id))
-  if (songIds.length === 0 || state.players.length === 0) {
-    throw new Error('Need players and songs to start')
+  const shuffled = shuffleArray(state.songs.map((song) => song.id))
+  const playerCount = state.players.length
+  if (shuffled.length < playerCount || playerCount === 0) {
+    throw new Error('Need at least one song per player to start')
   }
 
-  const deckRows = songIds.map((songId, index) => ({
+  const starterIds = shuffled.slice(0, playerCount)
+  const deckIds = shuffled.slice(playerCount)
+
+  const deckRows = deckIds.map((songId, index) => ({
     room_id: roomId,
     song_id: songId,
     position: index,
@@ -186,9 +258,23 @@ export async function startOnlineGame(roomId: string, hostPlayerId: string) {
 
   await supabase.from('game_deck').delete().eq('room_id', roomId)
   await supabase.from('turns').delete().eq('room_id', roomId)
+  await supabase.from('player_timeline_cards').delete().eq('room_id', roomId)
 
   const { error: deckError } = await supabase.from('game_deck').insert(deckRows)
   if (deckError) throw deckError
+
+  const starterRows = state.players.map((player, index) => ({
+    room_id: roomId,
+    player_id: player.player_id,
+    song_id: starterIds[index],
+    position: 0,
+    is_starter: true,
+  }))
+
+  const { error: starterError } = await supabase
+    .from('player_timeline_cards')
+    .insert(starterRows)
+  if (starterError) throw starterError
 
   await supabase
     .from('room_players')
@@ -197,7 +283,12 @@ export async function startOnlineGame(roomId: string, hostPlayerId: string) {
 
   await supabase.from('rooms').update({ phase: 'playing' }).eq('id', roomId)
 
-  await createNextTurn(roomId, state.players[0].player_id, songIds[0])
+  if (deckIds.length === 0) {
+    await supabase.from('rooms').update({ phase: 'finished' }).eq('id', roomId)
+    return
+  }
+
+  await createNextTurn(roomId, state.players[0].player_id, deckIds[0])
 }
 
 async function createNextTurn(
@@ -228,12 +319,26 @@ export async function submitOnlineGuess(
 ) {
   if (!supabase) throw new Error('Supabase is not configured')
 
+  const state = await fetchRoomState(roomId)
+  if (
+    state.room.phase !== 'playing' &&
+    state.room.phase !== 'challenge' &&
+    state.room.phase !== 'placement'
+  ) {
+    throw new Error('Cannot guess right now')
+  }
+  if (state.currentTurn?.id !== turnId) {
+    throw new Error('Turn has changed')
+  }
+  if (state.currentTurn.guess !== null) {
+    throw new Error('Guess already submitted this turn')
+  }
+
   const { error: turnError } = await supabase
     .from('turns')
     .update({
       guess,
       is_correct: isCorrect,
-      ended_at: new Date().toISOString(),
     })
     .eq('id', turnId)
     .eq('active_player_id', activePlayerId)
@@ -243,7 +348,7 @@ export async function submitOnlineGuess(
   if (isCorrect) {
     const { data: player } = await supabase
       .from('room_players')
-      .select('score')
+      .select('coins')
       .eq('room_id', roomId)
       .eq('player_id', activePlayerId)
       .single()
@@ -251,11 +356,172 @@ export async function submitOnlineGuess(
     if (player) {
       await supabase
         .from('room_players')
-        .update({ score: player.score + 1 })
+        .update({ coins: player.coins + GUESS_REWARD_COINS })
         .eq('room_id', roomId)
         .eq('player_id', activePlayerId)
     }
   }
+
+  if (state.room.phase === 'placement') {
+    await supabase.from('rooms').update({ phase: 'playing' }).eq('id', roomId)
+  }
+}
+
+export async function submitOnlinePlacement(
+  roomId: string,
+  turnId: string,
+  activePlayerId: string,
+  insertIndex: number,
+) {
+  if (!supabase) throw new Error('Supabase is not configured')
+
+  const state = await fetchRoomState(roomId)
+  if (state.room.phase !== 'playing' && state.room.phase !== 'placement') {
+    throw new Error('Not in playing phase')
+  }
+  if (state.currentTurn?.id !== turnId) {
+    throw new Error('Turn has changed')
+  }
+  if (state.currentTurn.active_player_id !== activePlayerId) {
+    throw new Error('Only the active player can place the card')
+  }
+
+  const timelineLength = buildOrderedSongIds(state.timelineCards, activePlayerId).length
+  if (insertIndex < 0 || insertIndex > timelineLength) {
+    throw new Error('Invalid timeline position')
+  }
+
+  const { error: turnError } = await supabase
+    .from('turns')
+    .update({ insert_index: insertIndex })
+    .eq('id', turnId)
+    .eq('active_player_id', activePlayerId)
+
+  if (turnError) throw turnError
+  await supabase.from('rooms').update({ phase: 'challenge' }).eq('id', roomId)
+}
+
+export async function submitOnlineChallenge(
+  roomId: string,
+  turnId: string,
+  challengerId: string,
+) {
+  if (!supabase) throw new Error('Supabase is not configured')
+
+  const state = await fetchRoomState(roomId)
+  if (state.room.phase !== 'challenge' || !state.currentTurn) {
+    throw new Error('Not in challenge phase')
+  }
+  if (state.currentTurn.id !== turnId) {
+    throw new Error('Turn has changed')
+  }
+  if (state.currentTurn.active_player_id === challengerId) {
+    throw new Error('You cannot challenge your own placement')
+  }
+  if (state.currentTurn.challenger_player_id) {
+    throw new Error('This claim was already challenged')
+  }
+
+  const challenger = state.players.find((player) => player.player_id === challengerId)
+  if (!challenger || challenger.coins < CHALLENGE_COST) {
+    throw new Error('Not enough coins to challenge')
+  }
+
+  await supabase
+    .from('room_players')
+    .update({ coins: challenger.coins - CHALLENGE_COST })
+    .eq('room_id', roomId)
+    .eq('player_id', challengerId)
+
+  const { error: turnError } = await supabase
+    .from('turns')
+    .update({ challenger_player_id: challengerId })
+    .eq('id', turnId)
+
+  if (turnError) throw turnError
+}
+
+export async function revealOnlineClaim(roomId: string, turnId: string) {
+  if (!supabase) throw new Error('Supabase is not configured')
+
+  const state = await fetchRoomState(roomId)
+  if (state.room.phase !== 'challenge' || !state.currentTurn) {
+    throw new Error('Not in challenge phase')
+  }
+  if (state.currentTurn.id !== turnId) {
+    throw new Error('Turn has changed')
+  }
+
+  const insertIndex = getTurnInsertIndex(state.currentTurn)
+  if (insertIndex === null) {
+    throw new Error('No placement to reveal')
+  }
+
+  const song = state.songs.find((entry) => entry.id === state.currentTurn?.song_id)
+  if (!song) throw new Error('Song not found')
+
+  const getReleaseYear = (songId: string) =>
+    state.songs.find((entry) => entry.id === songId)?.release_year
+
+  const claimantCards = buildOrderedSongIds(
+    state.timelineCards,
+    state.currentTurn.active_player_id,
+  )
+
+  const placementCorrect = isPlacementCorrect(
+    song.release_year,
+    claimantCards,
+    insertIndex,
+    getReleaseYear,
+  )
+
+  let awardedTo: string | null = null
+  let discarded = false
+
+  if (placementCorrect) {
+    awardedTo = state.currentTurn.active_player_id
+  } else if (state.currentTurn.challenger_player_id) {
+    awardedTo = state.currentTurn.challenger_player_id
+  } else {
+    discarded = true
+  }
+
+  if (awardedTo) {
+    let targetInsertIndex = insertIndex
+
+    if (!placementCorrect || awardedTo !== state.currentTurn.active_player_id) {
+      const recipientCards = buildOrderedSongIds(state.timelineCards, awardedTo)
+      targetInsertIndex = findCorrectInsertIndex(
+        song.release_year,
+        recipientCards,
+        getReleaseYear,
+      )
+    }
+
+    const guessCorrect = state.currentTurn.is_correct === true
+    const revealFromGuess =
+      awardedTo === state.currentTurn.active_player_id && guessCorrect
+
+    await insertTimelineCardAt(
+      roomId,
+      awardedTo,
+      song.id,
+      targetInsertIndex,
+      false,
+      revealFromGuess,
+      true,
+      state.timelineCards,
+    )
+  }
+
+  await supabase
+    .from('turns')
+    .update({
+      claim_awarded_to: awardedTo,
+      claim_discarded: discarded,
+      ended_at: new Date().toISOString(),
+    })
+    .eq('id', turnId)
 
   await supabase.from('rooms').update({ phase: 'reveal' }).eq('id', roomId)
 }
@@ -309,9 +575,48 @@ export function mapSongsToLookup(
       artist: song.artist,
       album: albumNames[song.album_id] ?? '',
       audioUrl: song.audio_url,
+      releaseYear: song.release_year ?? 2000,
     }
     return acc
   }, {})
+}
+
+export function buildBoardsFromTimeline(
+  players: DbRoomPlayer[],
+  timelineCards: DbTimelineCard[],
+) {
+  const boards = players.reduce<
+    Record<
+      string,
+      { coins: number; cards: string[]; starterSongId: string | null; guessedSongIds: string[]; revealedSongIds: string[] }
+    >
+  >((acc, player) => {
+    acc[player.player_id] = {
+      coins: player.coins ?? STARTING_COINS,
+      cards: [],
+      starterSongId: null,
+      guessedSongIds: [],
+      revealedSongIds: [],
+    }
+    return acc
+  }, {})
+
+  for (const player of players) {
+    const playerCards = timelineCards
+      .filter((card) => card.player_id === player.player_id)
+      .sort((a, b) => getCardPosition(a) - getCardPosition(b))
+
+    const board = boards[player.player_id]
+    if (!board) continue
+
+    board.cards = playerCards.map((card) => card.song_id)
+    board.guessedSongIds = playerCards.filter((card) => card.is_guessed).map((card) => card.song_id)
+    board.revealedSongIds = playerCards.filter((card) => card.is_revealed).map((card) => card.song_id)
+    const starter = playerCards.find((card) => card.is_starter)
+    board.starterSongId = starter?.song_id ?? playerCards[0]?.song_id ?? null
+  }
+
+  return boards
 }
 
 export function subscribeToRoom(
@@ -351,6 +656,11 @@ export function subscribeToRoom(
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'game_deck', filter: `room_id=eq.${roomId}` },
+      onChange,
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'player_timeline_cards', filter: `room_id=eq.${roomId}` },
       onChange,
     )
     .subscribe()

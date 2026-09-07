@@ -1,0 +1,143 @@
+.timeline-board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.timeline-title {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.timeline-meta {
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+}
+
+.timeline-row {
+  display: flex;
+  align-items: center;
+  min-height: 96px;
+  overflow-x: auto;
+  padding: var(--space-sm) 0;
+}
+
+.timeline-row:not(.timeline-row--interactive) {
+  gap: var(--space-sm);
+}
+
+.timeline-row-segment {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.timeline-insert-slot {
+  width: 0;
+  min-width: 0;
+  flex-shrink: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  transition: width 0.2s ease, min-width 0.2s ease;
+}
+
+.timeline-insert-slot--interactive {
+  width: 16px;
+  min-width: 16px;
+  cursor: pointer;
+}
+
+.timeline-insert-slot--open {
+  width: 72px;
+  min-width: 72px;
+}
+
+.timeline-insert-slot--placed {
+  cursor: grab;
+}
+
+.timeline-insert-slot--placed .song-card--draggable {
+  touch-action: none;
+}
+
+.timeline-empty {
+  margin: 0;
+}
+
+.collections-grid {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.collection-panel {
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.collection-name {
+  margin: 0 0 var(--space-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.challenge-panel {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.placement-panel {
+  border: 1px solid rgba(29, 185, 84, 0.35);
+}
+
+.placement-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.placement-hero-hint {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.placement-hero-slot {
+  width: min(100%, 320px);
+  aspect-ratio: 3 / 4;
+  border: 2px dashed rgba(255, 255, 255, 0.28);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.03);
+  flex-shrink: 0;
+}
+
+.drag-floating-card {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.drag-floating-card--hero {
+  width: min(100vw - 2rem, 320px);
+}
+
+.drag-floating-card--timeline {
+  width: 72px;
+}
+
+.placement-hero .song-card--draggable {
+  touch-action: none;
+}

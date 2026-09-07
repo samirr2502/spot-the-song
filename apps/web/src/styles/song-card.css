@@ -1,0 +1,146 @@
+.song-card {
+  --song-card-width: min(100%, 320px);
+  perspective: 1000px;
+  width: var(--song-card-width);
+  aspect-ratio: 3 / 4;
+  flex-shrink: 0;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.song-card--timeline {
+  --song-card-width: 72px;
+  margin: 0 var(--space-xs);
+}
+
+.song-card--hero {
+  margin: 0 auto;
+}
+
+.song-card--dragging {
+  opacity: 0.4;
+  transform: scale(0.68);
+  cursor: grabbing;
+}
+
+.song-card--ghost {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.song-card--draggable {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.song-card--draggable.song-card--dragging {
+  cursor: grabbing;
+}
+
+.song-card__inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s;
+  transform-style: preserve-3d;
+}
+
+.song-card--flipped .song-card__inner {
+  transform: rotateY(180deg);
+}
+
+.song-card__face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.song-card--timeline .song-card__face {
+  padding: var(--space-xs);
+  border-radius: var(--radius-md);
+}
+
+.song-card__face--front {
+  background: linear-gradient(145deg, var(--gray-600), var(--bg-panel));
+}
+
+.song-card__face--back {
+  background: linear-gradient(145deg, var(--color-primary-dark), var(--color-primary));
+  color: var(--bg-dark);
+  transform: rotateY(180deg);
+}
+
+.song-card__mark {
+  font-weight: 700;
+  opacity: 0.85;
+  line-height: 1;
+}
+
+.song-card--hero .song-card__mark {
+  font-size: 5rem;
+}
+
+.song-card--timeline .song-card__mark {
+  font-size: 1.75rem;
+}
+
+.song-card__album {
+  margin-top: var(--space-sm);
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+.song-card__year {
+  margin-top: var(--space-xs);
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+}
+
+.song-card--timeline .song-card__year {
+  font-size: 0.65rem;
+}
+
+.song-card__badge {
+  margin-top: var(--space-xs);
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.song-card--starter .song-card__face--front {
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.song-card__title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  text-align: center;
+  margin: 0;
+}
+
+.song-card--timeline .song-card__title {
+  font-size: 0.55rem;
+}
+
+.song-card__artist {
+  font-size: var(--font-size-lg);
+  margin: var(--space-sm) 0 0;
+  opacity: 0.85;
+  text-align: center;
+}
+
+.song-card--timeline .song-card__artist {
+  font-size: 0.5rem;
+  margin-top: 2px;
+}

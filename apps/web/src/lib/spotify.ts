@@ -16,6 +16,7 @@ type SpotifyImportResponse = {
     title: string
     artist: string
     audioUrl: string
+    releaseYear?: number
   }>
   skippedCount: number
 }
@@ -59,6 +60,7 @@ export async function importSpotifyAlbum(
     artist: song.artist,
     album: data.name,
     audioUrl: song.audioUrl,
+    releaseYear: song.releaseYear ?? 2000,
   }))
 
   const album: Album = {

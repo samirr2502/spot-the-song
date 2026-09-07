@@ -13,13 +13,24 @@ type DraftSong = {
   title: string
   artist: string
   audioUrl: string
+  alternateTitles: string
+  alternateArtists: string
 }
 
 const emptySong = (): DraftSong => ({
   title: '',
   artist: '',
   audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+  alternateTitles: '',
+  alternateArtists: '',
 })
+
+function parseCommaList(value: string): string[] {
+  return value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+}
 
 export default function AlbumPicker({
   ownerPlayerId,
@@ -70,13 +81,21 @@ export default function AlbumPicker({
     const validSongs = draftSongs.filter((song) => song.title && song.artist)
     if (!albumName.trim() || validSongs.length === 0) return
 
-    const songs: Song[] = validSongs.map((song) => ({
-      id: createId('song'),
-      title: song.title.trim(),
-      artist: song.artist.trim(),
-      album: albumName.trim(),
-      audioUrl: song.audioUrl.trim(),
-    }))
+    const songs: Song[] = validSongs.map((song) => {
+      const alternateTitles = parseCommaList(song.alternateTitles)
+      const alternateArtists = parseCommaList(song.alternateArtists)
+
+      return {
+        id: createId('song'),
+        title: song.title.trim(),
+        artist: song.artist.trim(),
+        album: albumName.trim(),
+        audioUrl: song.audioUrl.trim(),
+        releaseYear: 2000,
+        ...(alternateTitles.length > 0 ? { alternateTitles } : {}),
+        ...(alternateArtists.length > 0 ? { alternateArtists } : {}),
+      }
+    })
 
     const album: Album = {
       id: createId('album'),
@@ -189,6 +208,28 @@ export default function AlbumPicker({
                     value={song.artist}
                     onChange={(event) => updateDraftSong(index, 'artist', event.target.value)}
                     placeholder="Artist name"
+                  />
+                </div>
+                <div className="field">
+                  <label className="label">Also accepted titles</label>
+                  <input
+                    className="input"
+                    value={song.alternateTitles}
+                    onChange={(event) =>
+                      updateDraftSong(index, 'alternateTitles', event.target.value)
+                    }
+                    placeholder="Optional, comma-separated"
+                  />
+                </div>
+                <div className="field">
+                  <label className="label">Also accepted artists</label>
+                  <input
+                    className="input"
+                    value={song.alternateArtists}
+                    onChange={(event) =>
+                      updateDraftSong(index, 'alternateArtists', event.target.value)
+                    }
+                    placeholder="Optional, comma-separated"
                   />
                 </div>
                 <button

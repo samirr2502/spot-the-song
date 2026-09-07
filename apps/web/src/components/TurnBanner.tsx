@@ -9,8 +9,6 @@ type TurnBannerProps = {
 export default function TurnBanner({ game, now }: TurnBannerProps) {
   const activePlayer = getActivePlayer(game)
   const remaining = getRemainingSeconds(game, now)
-  const timerClass =
-    remaining <= 5 ? 'timer expired' : remaining <= 10 ? 'timer warning' : 'timer'
 
   if (game.phase === 'finished') {
     return (
@@ -21,23 +19,45 @@ export default function TurnBanner({ game, now }: TurnBannerProps) {
     )
   }
 
-  if (game.phase === 'reveal') {
-    const correct = game.currentTurn?.isCorrect
+  if (game.phase === 'challenge') {
     return (
       <div className="turn-banner">
-        <h2>{correct ? 'Correct!' : 'Wrong!'}</h2>
+        <h2>Challenge window</h2>
         <p className="muted">
-          {correct ? '+1 point' : 'No points this round'}
+          {activePlayer?.name} can still name the song for a coin. Others may spend 1 coin to
+          challenge before the year is revealed.
         </p>
       </div>
     )
   }
 
+  if (game.phase === 'reveal') {
+    const resolution = game.lastClaimResolution
+    return (
+      <div className="turn-banner">
+        <h2>Turn result</h2>
+        <p className="muted">
+          {resolution?.placementCorrect
+            ? `${activePlayer?.name} keeps the card on their timeline.`
+            : resolution?.awardedTo
+              ? 'Wrong placement — challenger collects the card.'
+              : 'Wrong placement — card discarded.'}
+          {resolution?.guessCorrect && ` +${resolution.coinsAwarded} coin for naming the song.`}
+        </p>
+      </div>
+    )
+  }
+
+  const timerClass =
+    remaining <= 5 ? 'timer expired' : remaining <= 10 ? 'timer warning' : 'timer'
+
   return (
     <div className="turn-banner">
       <h2>{activePlayer?.name}&apos;s turn</h2>
       <div className={timerClass}>{remaining}s</div>
-      <p className="muted">Guess the song title or artist</p>
+      <p className="muted">
+        Guess the title or artist for a coin, then place the card on your timeline.
+      </p>
     </div>
   )
 }

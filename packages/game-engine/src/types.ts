@@ -4,6 +4,9 @@ export type Song = {
   artist: string
   album: string
   audioUrl: string
+  releaseYear: number
+  alternateTitles?: string[]
+  alternateArtists?: string[]
 }
 
 export type Album = {
@@ -20,7 +23,12 @@ export type Player = {
   order: number
 }
 
-export type GamePhase = 'lobby' | 'playing' | 'reveal' | 'finished'
+export type GamePhase =
+  | 'lobby'
+  | 'playing'
+  | 'challenge'
+  | 'reveal'
+  | 'finished'
 
 export type Turn = {
   activePlayerId: string
@@ -38,6 +46,32 @@ export type TurnHistoryEntry = {
   isCorrect: boolean
 }
 
+export type PendingClaim = {
+  songId: string
+  claimantId: string
+  insertIndex: number
+  challengerId: string | null
+}
+
+export type ClaimResolution = {
+  songId: string
+  releaseYear: number
+  placementCorrect: boolean
+  awardedTo: string | null
+  discarded: boolean
+  challengerId: string | null
+  guessCorrect: boolean
+  coinsAwarded: number
+}
+
+export type PlayerBoard = {
+  coins: number
+  cards: string[]
+  starterSongId: string | null
+  guessedSongIds: string[]
+  revealedSongIds: string[]
+}
+
 export type GameSettings = {
   guessTimeSeconds: number
 }
@@ -53,6 +87,9 @@ export type GameState = {
   turnHistory: TurnHistoryEntry[]
   settings: GameSettings
   activePlayerIndex: number
+  boards: Record<string, PlayerBoard>
+  pendingClaim: PendingClaim | null
+  lastClaimResolution: ClaimResolution | null
 }
 
 export const DEFAULT_SETTINGS: GameSettings = {

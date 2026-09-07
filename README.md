@@ -8,6 +8,7 @@ A music guessing game where players contribute albums, songs are shuffled into a
 - **Online mode** — each player joins on their phone; turns and audio sync via Supabase Realtime
 - **Flip card reveal** — songs hide behind a card until the answer is revealed
 - **Spotify import** — paste an album or playlist link to load songs automatically
+- **Timeline collection** — after a correct guess, place the card on a 10-slot year timeline; others can challenge with coins
 - **Shared game engine** — pure TypeScript rules used by both local and online modes
 
 ## Project structure
@@ -76,6 +77,11 @@ The importer reads Spotify's public embed pages for 30-second preview clips (Spo
 - Active player has ~30 seconds to guess (title or artist)
 - Correct guess: +1 point; wrong or timeout: 0 points
 - Card flips on reveal to show title and artist
+- Correct guess → place the song on your 10-slot timeline (1970–2015 anchors, ±3 years counts as correct)
+- Other players may spend **1 coin** to challenge before the year is revealed
+- Wrong placement + successful challenge → challenger gets the card
+- Wrong placement + no challenge → card is discarded
+- Everyone can see collected cards on each player's timeline
 - Game ends when the deck is empty
 
 ## Tech stack
