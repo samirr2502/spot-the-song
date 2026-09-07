@@ -23,5 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 
-# config
-*config.*
+# Sensitive config (allow vite/tsconfig/eslint in apps and packages)
+.env
+.env.*
+!.env.example
