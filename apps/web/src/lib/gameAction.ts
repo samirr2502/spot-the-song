@@ -14,6 +14,25 @@ type GameActionPayload = {
   challengerId?: string
 }
 
+export function isEdgeFunctionUnavailable(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'object' && error !== null && 'message' in error
+        ? String((error as { message: unknown }).message)
+        : String(error)
+
+  const lower = message.toLowerCase()
+  return (
+    lower.includes('failed to send a request to the edge function') ||
+    lower.includes('edge function') ||
+    lower.includes('function not found') ||
+    lower.includes('404') ||
+    lower.includes('failed to fetch') ||
+    lower.includes('network')
+  )
+}
+
 export async function callGameAction(
   action: GameActionType,
   roomId: string,
@@ -35,4 +54,22 @@ export async function callGameAction(
   }
 
   return data
+}
+
+export async function callGameActionWithFallback(
+  action: GameActionType,
+  roomId: string,
+  playerId: string,
+  payload: GameActionPayload,
+  fallback: () => Promise<void>,
+) {
+  try {
+    await callGameAction(action, roomId, playerId, payload)
+  } catch (error) {
+    if (isEdgeFunctionUnavailable(error)) {
+      await fallback()
+      return
+    }
+    throw error
+  }
 }

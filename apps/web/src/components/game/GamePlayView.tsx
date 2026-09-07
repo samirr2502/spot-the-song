@@ -177,6 +177,14 @@ export default function GamePlayView({
             dragSource={dragSource}
             onPendingDragStart={cardPlacedOnTimeline ? startTimelineDrag : undefined}
           />
+          <button
+            type="button"
+            className="btn btn-primary placement-confirm-btn"
+            disabled={selectedInsertIndex === null}
+            onClick={actions.onConfirmPlacement}
+          >
+            Confirm placement
+          </button>
         </div>
       )}
 

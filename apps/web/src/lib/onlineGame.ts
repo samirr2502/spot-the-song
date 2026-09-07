@@ -1,10 +1,14 @@
 import type { Album, GameState, Song } from '@spot-the-song/game-engine'
 import {
+  findCorrectInsertIndex,
   GUESS_REWARD_COINS,
+  isGuessCorrect,
+  isPlacementCorrect,
   shuffleArray,
   STARTING_COINS,
+  CHALLENGE_COST,
 } from '@spot-the-song/game-engine'
-import { callGameAction } from './gameAction'
+import { callGameActionWithFallback } from './gameAction'
 import {
   DbAlbum,
   DbGameDeck,
@@ -18,8 +22,59 @@ import {
   supabase,
 } from './supabase'
 
+function getTurnInsertIndex(turn: DbTurn): number | null {
+  return turn.insert_index ?? turn.claimed_slot ?? null
+}
+
 function getCardPosition(card: DbTimelineCard): number {
   return card.position ?? card.slot_index ?? 0
+}
+
+function buildOrderedSongIds(cards: DbTimelineCard[], playerId: string): string[] {
+  return cards
+    .filter((card) => card.player_id === playerId)
+    .sort((a, b) => getCardPosition(a) - getCardPosition(b))
+    .map((card) => card.song_id)
+}
+
+async function insertTimelineCardAt(
+  roomId: string,
+  playerId: string,
+  songId: string,
+  insertIndex: number,
+  isStarter = false,
+  isGuessed = false,
+  isRevealed = false,
+  existingCards: DbTimelineCard[] = [],
+) {
+  if (!supabase) throw new Error('Supabase is not configured')
+
+  const playerCards = existingCards
+    .filter((card) => card.player_id === playerId)
+    .sort((a, b) => getCardPosition(b) - getCardPosition(a))
+
+  for (const card of playerCards) {
+    if (getCardPosition(card) >= insertIndex) {
+      const { error } = await supabase
+        .from('player_timeline_cards')
+        .update({ position: getCardPosition(card) + 1 })
+        .eq('id', card.id)
+
+      if (error) throw error
+    }
+  }
+
+  const { error } = await supabase.from('player_timeline_cards').insert({
+    room_id: roomId,
+    player_id: playerId,
+    song_id: songId,
+    position: insertIndex,
+    is_starter: isStarter,
+    is_guessed: isGuessed,
+    is_revealed: isRevealed,
+  })
+
+  if (error) throw error
 }
 
 export async function createRoom(hostName: string) {
@@ -279,7 +334,13 @@ export async function submitOnlineGuess(
   activePlayerId: string,
   guess: string,
 ) {
-  await callGameAction('guess', roomId, activePlayerId, { turnId, guess })
+  await callGameActionWithFallback(
+    'guess',
+    roomId,
+    activePlayerId,
+    { turnId, guess },
+    () => submitOnlineGuessDirect(roomId, turnId, activePlayerId, guess),
+  )
 }
 
 export async function submitOnlinePlacement(
@@ -288,7 +349,13 @@ export async function submitOnlinePlacement(
   activePlayerId: string,
   insertIndex: number,
 ) {
-  await callGameAction('placement', roomId, activePlayerId, { turnId, insertIndex })
+  await callGameActionWithFallback(
+    'placement',
+    roomId,
+    activePlayerId,
+    { turnId, insertIndex },
+    () => submitOnlinePlacementDirect(roomId, turnId, activePlayerId, insertIndex),
+  )
 }
 
 export async function submitOnlineChallenge(
@@ -296,16 +363,280 @@ export async function submitOnlineChallenge(
   turnId: string,
   challengerId: string,
 ) {
-  await callGameAction('challenge', roomId, challengerId, { turnId, challengerId })
+  await callGameActionWithFallback(
+    'challenge',
+    roomId,
+    challengerId,
+    { turnId, challengerId },
+    () => submitOnlineChallengeDirect(roomId, turnId, challengerId),
+  )
 }
 
 export async function revealOnlineClaim(roomId: string, turnId: string) {
   const playerId = getPlayerSessionId()
-  await callGameAction('reveal', roomId, playerId, { turnId })
+  await callGameActionWithFallback(
+    'reveal',
+    roomId,
+    playerId,
+    { turnId },
+    () => revealOnlineClaimDirect(roomId, turnId),
+  )
 }
 
 export async function advanceOnlineTurn(roomId: string, hostPlayerId: string) {
-  await callGameAction('advance', roomId, hostPlayerId, {})
+  await callGameActionWithFallback(
+    'advance',
+    roomId,
+    hostPlayerId,
+    {},
+    () => advanceOnlineTurnDirect(roomId, hostPlayerId),
+  )
+}
+
+async function submitOnlineGuessDirect(
+  roomId: string,
+  turnId: string,
+  activePlayerId: string,
+  guess: string,
+) {
+  if (!supabase) throw new Error('Supabase is not configured')
+
+  const state = await fetchRoomState(roomId)
+  if (
+    state.room.phase !== 'playing' &&
+    state.room.phase !== 'challenge' &&
+    state.room.phase !== 'placement'
+  ) {
+    throw new Error('Cannot guess right now')
+  }
+  if (state.currentTurn?.id !== turnId) {
+    throw new Error('Turn has changed')
+  }
+  if (state.currentTurn.guess !== null) {
+    throw new Error('Guess already submitted this turn')
+  }
+
+  const song = state.songs.find((entry) => entry.id === state.currentTurn?.song_id)
+  if (!song) throw new Error('Song not found')
+
+  const isCorrect = isGuessCorrect(guess, song.title, song.artist)
+
+  const { error: turnError } = await supabase
+    .from('turns')
+    .update({ guess, is_correct: isCorrect })
+    .eq('id', turnId)
+    .eq('active_player_id', activePlayerId)
+
+  if (turnError) throw turnError
+
+  if (isCorrect) {
+    const player = state.players.find((entry) => entry.player_id === activePlayerId)
+    if (player) {
+      await supabase
+        .from('room_players')
+        .update({ coins: player.coins + GUESS_REWARD_COINS })
+        .eq('room_id', roomId)
+        .eq('player_id', activePlayerId)
+    }
+  }
+
+  if (state.room.phase === 'placement') {
+    await supabase.from('rooms').update({ phase: 'playing' }).eq('id', roomId)
+  }
+}
+
+async function submitOnlinePlacementDirect(
+  roomId: string,
+  turnId: string,
+  activePlayerId: string,
+  insertIndex: number,
+) {
+  if (!supabase) throw new Error('Supabase is not configured')
+
+  const state = await fetchRoomState(roomId)
+  if (state.room.phase !== 'playing' && state.room.phase !== 'placement') {
+    throw new Error('Not in playing phase')
+  }
+  if (state.currentTurn?.id !== turnId) {
+    throw new Error('Turn has changed')
+  }
+  if (state.currentTurn.active_player_id !== activePlayerId) {
+    throw new Error('Only the active player can place the card')
+  }
+
+  const timelineLength = buildOrderedSongIds(state.timelineCards, activePlayerId).length
+  if (insertIndex < 0 || insertIndex > timelineLength) {
+    throw new Error('Invalid timeline position')
+  }
+
+  const { error: turnError } = await supabase
+    .from('turns')
+    .update({ insert_index: insertIndex })
+    .eq('id', turnId)
+    .eq('active_player_id', activePlayerId)
+
+  if (turnError) throw turnError
+  await supabase.from('rooms').update({ phase: 'challenge' }).eq('id', roomId)
+}
+
+async function submitOnlineChallengeDirect(
+  roomId: string,
+  turnId: string,
+  challengerId: string,
+) {
+  if (!supabase) throw new Error('Supabase is not configured')
+
+  const state = await fetchRoomState(roomId)
+  if (state.room.phase !== 'challenge' || !state.currentTurn) {
+    throw new Error('Not in challenge phase')
+  }
+  if (state.currentTurn.id !== turnId) {
+    throw new Error('Turn has changed')
+  }
+  if (state.currentTurn.active_player_id === challengerId) {
+    throw new Error('You cannot challenge your own placement')
+  }
+  if (state.currentTurn.challenger_player_id) {
+    throw new Error('This claim was already challenged')
+  }
+
+  const challenger = state.players.find((player) => player.player_id === challengerId)
+  if (!challenger || challenger.coins < CHALLENGE_COST) {
+    throw new Error('Not enough coins to challenge')
+  }
+
+  await supabase
+    .from('room_players')
+    .update({ coins: challenger.coins - CHALLENGE_COST })
+    .eq('room_id', roomId)
+    .eq('player_id', challengerId)
+
+  const { error: turnError } = await supabase
+    .from('turns')
+    .update({ challenger_player_id: challengerId })
+    .eq('id', turnId)
+
+  if (turnError) throw turnError
+}
+
+async function revealOnlineClaimDirect(roomId: string, turnId: string) {
+  if (!supabase) throw new Error('Supabase is not configured')
+
+  const state = await fetchRoomState(roomId)
+  if (state.room.phase !== 'challenge' || !state.currentTurn) {
+    throw new Error('Not in challenge phase')
+  }
+  if (state.currentTurn.id !== turnId) {
+    throw new Error('Turn has changed')
+  }
+
+  const insertIndex = getTurnInsertIndex(state.currentTurn)
+  if (insertIndex === null) {
+    throw new Error('No placement to reveal')
+  }
+
+  const song = state.songs.find((entry) => entry.id === state.currentTurn?.song_id)
+  if (!song) throw new Error('Song not found')
+
+  const getReleaseYear = (songId: string) =>
+    state.songs.find((entry) => entry.id === songId)?.release_year
+
+  const claimantCards = buildOrderedSongIds(
+    state.timelineCards,
+    state.currentTurn.active_player_id,
+  )
+
+  const placementCorrect = isPlacementCorrect(
+    song.release_year,
+    claimantCards,
+    insertIndex,
+    getReleaseYear,
+  )
+
+  let awardedTo: string | null = null
+  let discarded = false
+
+  if (placementCorrect) {
+    awardedTo = state.currentTurn.active_player_id
+  } else if (state.currentTurn.challenger_player_id) {
+    awardedTo = state.currentTurn.challenger_player_id
+  } else {
+    discarded = true
+  }
+
+  if (awardedTo) {
+    let targetInsertIndex = insertIndex
+
+    if (!placementCorrect || awardedTo !== state.currentTurn.active_player_id) {
+      const recipientCards = buildOrderedSongIds(state.timelineCards, awardedTo)
+      targetInsertIndex = findCorrectInsertIndex(
+        song.release_year,
+        recipientCards,
+        getReleaseYear,
+      )
+    }
+
+    const guessCorrect = state.currentTurn.is_correct === true
+    const isGuessed =
+      placementCorrect &&
+      guessCorrect &&
+      awardedTo === state.currentTurn.active_player_id
+
+    await insertTimelineCardAt(
+      roomId,
+      awardedTo,
+      song.id,
+      targetInsertIndex,
+      false,
+      isGuessed,
+      true,
+      state.timelineCards,
+    )
+  }
+
+  await supabase
+    .from('turns')
+    .update({
+      claim_awarded_to: awardedTo,
+      claim_discarded: discarded,
+      ended_at: new Date().toISOString(),
+    })
+    .eq('id', turnId)
+
+  await supabase.from('rooms').update({ phase: 'reveal' }).eq('id', roomId)
+}
+
+async function advanceOnlineTurnDirect(roomId: string, hostPlayerId: string) {
+  if (!supabase) throw new Error('Supabase is not configured')
+
+  const state = await fetchRoomState(roomId)
+  if (state.room.host_player_id !== hostPlayerId) {
+    throw new Error('Only the host can advance the turn')
+  }
+
+  const currentSongId = state.currentTurn?.song_id
+  if (currentSongId) {
+    await supabase
+      .from('game_deck')
+      .update({ played: true })
+      .eq('room_id', roomId)
+      .eq('song_id', currentSongId)
+  }
+
+  const remaining = state.deck.filter((card) => !card.played && card.song_id !== currentSongId)
+  if (remaining.length === 0) {
+    await supabase.from('rooms').update({ phase: 'finished' }).eq('id', roomId)
+    return
+  }
+
+  const currentIndex = state.players.findIndex(
+    (player) => player.player_id === state.currentTurn?.active_player_id,
+  )
+  const nextPlayer = state.players[(currentIndex + 1) % state.players.length]
+  const nextCard = remaining.sort((a, b) => a.position - b.position)[0]
+
+  await supabase.from('rooms').update({ phase: 'playing' }).eq('id', roomId)
+  await createNextTurn(roomId, nextPlayer.player_id, nextCard.song_id)
 }
 
 export function buildOnlineDeckAndDiscard(

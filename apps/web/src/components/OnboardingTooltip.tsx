@@ -1,3 +1,4 @@
+import { useLocation } from 'react-router-dom'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -18,14 +19,19 @@ const SLIDES = [
   },
 ]
 
+const PLAY_ROUTES = ['/local/play', '/online/play']
+
 export default function OnboardingTooltip() {
+  const location = useLocation()
+  const isPlayRoute = PLAY_ROUTES.some((route) => location.pathname.startsWith(route))
+
   const [visible, setVisible] = useState(() => {
     if (typeof localStorage === 'undefined') return false
     return localStorage.getItem(ONBOARDING_KEY) !== 'true'
   })
   const [slide, setSlide] = useState(0)
 
-  if (!visible) return null
+  if (!visible || isPlayRoute) return null
 
   function dismiss() {
     localStorage.setItem(ONBOARDING_KEY, 'true')

@@ -13,6 +13,8 @@
   border-radius: var(--radius-lg);
   padding: var(--space-md);
   background: rgba(255, 255, 255, 0.02);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .card-zones-meta {
@@ -32,6 +34,8 @@
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
   min-height: 120px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .card-pile-header {
@@ -55,10 +59,64 @@
 
 .card-pile-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--space-xs);
   align-items: flex-start;
   min-height: 96px;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.card-pile-stack {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 96px;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  padding-right: var(--space-md);
+}
+
+.card-pile-stack--timeline {
+  --pile-card-width: 72px;
+  min-height: 88px;
+}
+
+.card-pile-stack--hero {
+  --pile-card-width: min(100%, 200px);
+  min-height: 140px;
+}
+
+.card-pile-stack__layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  flex-shrink: 0;
+}
+
+.card-pile-stack--timeline .card-pile-stack__layer .song-card {
+  --song-card-width: 72px;
+}
+
+.card-pile-stack--timeline .card-pile-stack__layer .song-card__title {
+  font-size: 0.62rem;
+}
+
+.card-pile-stack--timeline .card-pile-stack__layer .song-card__artist {
+  font-size: 0.55rem;
+}
+
+.card-pile-more {
+  position: absolute;
+  right: 0;
+  bottom: var(--space-xs);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--color-primary);
+  background: var(--bg-panel);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
 }
 
 .card-pile-row--hero {

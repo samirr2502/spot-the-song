@@ -10,8 +10,10 @@
   gap: var(--space-sm);
   padding: var(--space-md) var(--space-lg);
   padding-bottom: calc(var(--space-md) + var(--safe-bottom));
-  background: linear-gradient(to top, var(--bg-dark) 70%, transparent);
-  backdrop-filter: blur(8px);
+  background: var(--bg-dark);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
 }
 
 .phase-action-bar__btn {

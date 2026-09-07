@@ -101,6 +101,23 @@
   border: 1px solid rgba(29, 185, 84, 0.35);
 }
 
+.placement-confirm-btn {
+  width: 100%;
+  margin-top: var(--space-sm);
+}
+
+@media (min-width: 641px) {
+  .placement-confirm-btn {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .phase-action-bar .phase-action-bar__btn {
+    display: none;
+  }
+}
+
 .placement-hero {
   display: flex;
   flex-direction: column;
