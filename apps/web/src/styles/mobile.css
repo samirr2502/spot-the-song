@@ -1,0 +1,99 @@
+@media (max-width: 640px) {
+  main {
+    padding: var(--space-md);
+    padding-bottom: calc(var(--phase-bar-height) + var(--safe-bottom) + var(--space-md));
+  }
+
+  .app-header {
+    padding: var(--space-sm) var(--space-md);
+    padding-top: calc(var(--space-sm) + var(--safe-top));
+  }
+
+  .app-footer {
+    padding: var(--space-sm) var(--space-md);
+    padding-bottom: calc(var(--space-sm) + var(--safe-bottom));
+    font-size: var(--font-size-xs);
+  }
+
+  .page-title {
+    font-size: var(--font-size-xl);
+  }
+
+  .game-board-stats {
+    flex-direction: column;
+  }
+
+  .game-board-stats > * {
+    flex: 1 1 100% !important;
+  }
+
+  .card-zones--three {
+    grid-template-columns: 1fr !important;
+  }
+
+  .draw-stack {
+    min-height: 180px !important;
+  }
+
+  .timeline-insert-slot--interactive {
+    width: 48px;
+    min-width: 48px;
+  }
+
+  .timeline-row {
+    min-height: 120px;
+  }
+
+  .collections-grid--accordion .collection-panel:not(.collection-panel--expanded) {
+    display: none;
+  }
+
+  .collections-tabs {
+    display: flex;
+    gap: var(--space-xs);
+    overflow-x: auto;
+    padding-bottom: var(--space-xs);
+  }
+
+  .collections-tab {
+    flex-shrink: 0;
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .collections-tab--active {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  .mode-cards {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .how-to-steps {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .draw-stack {
+    min-height: 160px !important;
+  }
+
+  .song-card--hero {
+    --song-card-width: min(100%, 280px);
+  }
+}
+
+@media (min-width: 641px) {
+  .collections-tabs {
+    display: none;
+  }
+}

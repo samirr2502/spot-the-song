@@ -25,7 +25,7 @@
 .timeline-row {
   display: flex;
   align-items: center;
-  min-height: 96px;
+  min-height: 148px;
   overflow-x: auto;
   padding: var(--space-sm) 0;
 }
@@ -59,8 +59,8 @@
 }
 
 .timeline-insert-slot--open {
-  width: 72px;
-  min-width: 72px;
+  width: 112px;
+  min-width: 112px;
 }
 
 .timeline-insert-slot--placed {
@@ -128,14 +128,24 @@
   z-index: 1000;
   pointer-events: none;
   transform: translate(-50%, -50%);
+  transition: width 0.18s ease, transform 0.18s ease;
 }
 
 .drag-floating-card--hero {
   width: min(100vw - 2rem, 320px);
 }
 
+.drag-floating-card--hero.drag-floating-card--compact {
+  width: 112px;
+}
+
 .drag-floating-card--timeline {
-  width: 72px;
+  width: 112px;
+}
+
+.drag-floating-card--timeline.drag-floating-card--compact {
+  width: 96px;
+  transform: translate(-50%, -50%) scale(0.92);
 }
 
 .placement-hero .song-card--draggable {

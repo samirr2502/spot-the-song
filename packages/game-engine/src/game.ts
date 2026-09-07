@@ -10,6 +10,7 @@ import {
 import { isGuessCorrect } from './validation.js'
 import {
   Album,
+  CardZones,
   ClaimResolution,
   DEFAULT_SETTINGS,
   GameSettings,
@@ -33,6 +34,25 @@ function createPlayerBoard(): PlayerBoard {
     guessedSongIds: [],
     revealedSongIds: [],
   }
+}
+
+export function normalizePlayerBoard(board: PlayerBoard): PlayerBoard {
+  return {
+    coins: board.coins ?? STARTING_COINS,
+    cards: board.cards ?? [],
+    starterSongId: board.starterSongId ?? null,
+    guessedSongIds: board.guessedSongIds ?? [],
+    revealedSongIds: board.revealedSongIds ?? [],
+  }
+}
+
+function normalizeBoards(boards: Record<string, PlayerBoard>): Record<string, PlayerBoard> {
+  return Object.fromEntries(
+    Object.entries(boards).map(([playerId, board]) => [
+      playerId,
+      normalizePlayerBoard(board),
+    ]),
+  )
 }
 
 function getReleaseYearForGame(game: GameState, songId: string): number | undefined {
@@ -63,6 +83,7 @@ export function createGame(
     players: orderedPlayers,
     albums,
     deck: [],
+    discardPile: [],
     playedSongIds: [],
     currentTurn: null,
     turnHistory: [],
@@ -87,7 +108,8 @@ export function getActivePlayer(game: GameState): Player | undefined {
 }
 
 export function getPlayerBoard(game: GameState, playerId: string): PlayerBoard | undefined {
-  return game.boards[playerId]
+  const board = game.boards[playerId]
+  return board ? normalizePlayerBoard(board) : undefined
 }
 
 export function startGame(game: GameState): GameState {
@@ -107,7 +129,7 @@ export function startGame(game: GameState): GameState {
         cards: [starterIds[index]],
         starterSongId: starterIds[index],
         guessedSongIds: [],
-        revealedSongIds: [],
+        revealedSongIds: [starterIds[index]],
       },
     ]),
   )
@@ -116,6 +138,7 @@ export function startGame(game: GameState): GameState {
     ...game,
     phase: 'playing',
     deck: deckIds,
+    discardPile: [],
     playedSongIds: [],
     turnHistory: [],
     activePlayerIndex: 0,
@@ -171,8 +194,7 @@ export function submitGuess(game: GameState, guess: string): GameState {
   })
 
   const activePlayerId = game.currentTurn.activePlayerId
-  const board = game.boards[activePlayerId]
-  if (!board) return game
+  const board = normalizePlayerBoard(game.boards[activePlayerId] ?? createPlayerBoard())
 
   const nextBoards = correct
     ? {
@@ -201,8 +223,7 @@ export function submitPlacement(game: GameState, insertIndex: number): GameState
   }
 
   const claimantId = game.currentTurn.activePlayerId
-  const board = game.boards[claimantId]
-  if (!board) return game
+  const board = normalizePlayerBoard(game.boards[claimantId] ?? createPlayerBoard())
 
   const index = Math.max(0, Math.min(insertIndex, board.cards.length))
 
@@ -226,8 +247,8 @@ export function submitChallenge(game: GameState, challengerId: string): GameStat
   if (challengerId === game.pendingClaim.claimantId) return game
   if (game.pendingClaim.challengerId) return game
 
-  const board = game.boards[challengerId]
-  if (!board || board.coins < CHALLENGE_COST) return game
+  const board = normalizePlayerBoard(game.boards[challengerId] ?? createPlayerBoard())
+  if (board.coins < CHALLENGE_COST) return game
 
   return {
     ...game,
@@ -254,8 +275,9 @@ function awardCardToPlayer(
   guessedCorrectly: boolean,
   revealOnTimeline: boolean,
 ): Record<string, PlayerBoard> {
-  const board = boards[playerId]
-  if (!board) return boards
+  if (!boards[playerId]) return boards
+
+  const board = normalizePlayerBoard(boards[playerId])
 
   const song = getSongById(game, songId)
   if (!song) return boards
@@ -293,10 +315,11 @@ export function revealClaim(game: GameState): GameState {
     return game
   }
 
+  const boards = normalizeBoards(game.boards)
   const song = getSongById(game, game.pendingClaim.songId)
   if (!song) return game
 
-  const claimantBoard = game.boards[game.pendingClaim.claimantId]
+  const claimantBoard = boards[game.pendingClaim.claimantId]
   const getYear = (id: string) => getReleaseYearForGame(game, id)
   const placementCorrect = claimantBoard
     ? isPlacementCorrect(
@@ -307,15 +330,15 @@ export function revealClaim(game: GameState): GameState {
       )
     : false
 
-  let boards = { ...game.boards }
+  let nextBoards = { ...boards }
   let awardedTo: string | null = null
   let discarded = false
   const guessCorrect = game.currentTurn.isCorrect === true
 
   if (placementCorrect) {
-    boards = awardCardToPlayer(
+    nextBoards = awardCardToPlayer(
       game,
-      boards,
+      nextBoards,
       game.pendingClaim.claimantId,
       game.pendingClaim.songId,
       game.pendingClaim.insertIndex,
@@ -324,9 +347,9 @@ export function revealClaim(game: GameState): GameState {
     )
     awardedTo = game.pendingClaim.claimantId
   } else if (game.pendingClaim.challengerId) {
-    boards = awardCardToPlayer(
+    nextBoards = awardCardToPlayer(
       game,
-      boards,
+      nextBoards,
       game.pendingClaim.challengerId,
       game.pendingClaim.songId,
       null,
@@ -337,6 +360,11 @@ export function revealClaim(game: GameState): GameState {
   } else {
     discarded = true
   }
+
+  const discardPile =
+    discarded && !game.discardPile.includes(game.pendingClaim.songId)
+      ? [...(game.discardPile ?? []), game.pendingClaim.songId]
+      : game.discardPile ?? []
 
   const resolution: ClaimResolution = {
     songId: song.id,
@@ -352,10 +380,43 @@ export function revealClaim(game: GameState): GameState {
   return {
     ...game,
     phase: 'reveal',
-    boards,
+    boards: nextBoards,
+    discardPile,
     pendingClaim: null,
     lastClaimResolution: resolution,
   }
+}
+
+export function getAllSongsInAlbum(game: GameState): string[] {
+  return getAllSongs(game).map((song) => song.id)
+}
+
+export function getCardZones(game: GameState): CardZones {
+  const active =
+    game.currentTurn &&
+    (game.phase === 'playing' || game.phase === 'challenge')
+      ? game.currentTurn.currentSongId
+      : null
+
+  const timelines = Object.fromEntries(
+    game.players.map((player) => [player.id, game.boards[player.id]?.cards ?? []]),
+  )
+
+  return {
+    deck: game.deck ?? [],
+    active,
+    timelines,
+    discard: game.discardPile ?? [],
+  }
+}
+
+export function countVisibleCards(game: GameState): number {
+  const zones = getCardZones(game)
+  const timelineCount = Object.values(zones.timelines).reduce(
+    (total, cards) => total + cards.length,
+    0,
+  )
+  return zones.deck.length + (zones.active ? 1 : 0) + timelineCount + zones.discard.length
 }
 
 export function revealAndScore(game: GameState): GameState {

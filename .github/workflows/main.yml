@@ -29,14 +29,17 @@ jobs:
           node-version: '22.x'
 
       - name: Install dependencies and build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
           npm run build
-          cp dist/index.html dist/404.html
+          cp apps/web/dist/index.html apps/web/dist/404.html
 
       - name: Upload built site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: apps/web/dist
 
   deploy:
     name: Deploy to GitHub Pages

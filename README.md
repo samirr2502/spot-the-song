@@ -1,27 +1,15 @@
 # Spot the Song
 
-A music guessing game where players contribute albums, songs are shuffled into a shared deck, and everyone takes turns guessing. Correct guesses earn 1 point.
+A music guessing game where players listen to clips, guess songs, and build chronological timelines. Pass-and-play locally or play online from any phone.
 
 ## Features
 
 - **Local mode** — pass-and-play on one device (no backend required)
-- **Online mode** — each player joins on their phone; turns and audio sync via Supabase Realtime
-- **Flip card reveal** — songs hide behind a card until the answer is revealed
-- **Spotify import** — paste an album or playlist link to load songs automatically
-- **Timeline collection** — after a correct guess, place the card on a 10-slot year timeline; others can challenge with coins
-- **Shared game engine** — pure TypeScript rules used by both local and online modes
-
-## Project structure
-
-```
-spot-the-song/
-├── apps/web/              # React + Vite frontend
-├── packages/game-engine/  # Pure TS game logic + tests
-├── supabase/
-│   ├── migrations/        # Postgres schema for online play
-│   └── functions/         # Edge functions (Spotify import)
-└── legacy/                # Original prototype (reference only)
-```
+- **Online mode** — each player on their phone; sync via Supabase Realtime
+- **Smooth reveals** — animated title and year flips with sound effects
+- **Fair online play** — server-validated guesses via edge function
+- **PWA** — add to home screen on iOS and Android
+- **Spotify import** — paste an album or playlist link to load songs
 
 ## Quick start
 
@@ -30,37 +18,30 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 and choose **Local Game** to play immediately.
+Open http://localhost:5173 — choose **Local Game** to play immediately.
 
-### Local game
+## Deploy (Vercel — recommended)
 
-1. Add 2+ players
-2. Paste a Spotify album/playlist link, load demo albums, or add songs manually
-3. Start the game — pass the device on each turn
-
-### Online game
-
-1. Create a Supabase project
-2. Run the migration in `supabase/migrations/001_initial.sql`
-3. Copy `apps/web/.env.example` to `apps/web/.env` and set:
+1. Push to GitHub
+2. Import the repo in [Vercel](https://vercel.com)
+3. Set environment variables:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
-4. Create a room, share the 6-character code, add albums, and start
+4. Deploy — `vercel.json` is preconfigured
 
-### Spotify import
+## Supabase setup (online mode)
 
-Albums can be imported from a Spotify link instead of typing songs manually.
-
-1. For **album links**, add Spotify credentials in Supabase → **Project Settings → Edge Functions → Secrets**:
-   - `SPOTIFY_CLIENT_ID`
-   - `SPOTIFY_CLIENT_SECRET`
-2. Deploy the edge function (already in `supabase/functions/spotify-import/`):
+1. Create a Supabase project
+2. Run all migrations in order: `supabase/migrations/001` through `007`
+3. Copy `apps/web/.env.example` to `apps/web/.env`
+4. Deploy edge functions:
    ```bash
    supabase functions deploy spotify-import
+   supabase functions deploy game-action
    ```
-2. Paste an album or playlist URL in the game setup screen
+5. Set edge function secrets (Spotify credentials for album import)
 
-The importer reads Spotify's public embed pages for 30-second preview clips (Spotify's Web API no longer returns `preview_url` for new apps). Tracks without a preview fall back to Deezer/iTunes search when possible.
+Migration `007` blocks direct client updates to turns — game mutations must go through the `game-action` edge function.
 
 ## Scripts
 
@@ -70,27 +51,21 @@ The importer reads Spotify's public embed pages for 30-second preview clips (Spo
 | `npm run build` | Build engine + web |
 | `npm test` | Run game engine unit tests |
 
-## Game rules (v1)
+## Project structure
 
-- Songs from all albums are merged and shuffled once at game start
-- Players take turns in order
-- Active player has ~30 seconds to guess (title or artist)
-- Correct guess: +1 point; wrong or timeout: 0 points
-- Card flips on reveal to show title and artist
-- Correct guess → place the song on your 10-slot timeline (1970–2015 anchors, ±3 years counts as correct)
-- Other players may spend **1 coin** to challenge before the year is revealed
-- Wrong placement + successful challenge → challenger gets the card
-- Wrong placement + no challenge → card is discarded
-- Everyone can see collected cards on each player's timeline
-- Game ends when the deck is empty
+```
+spot-the-song/
+├── apps/web/              # React + Vite frontend
+├── packages/game-engine/  # Pure TS game logic + tests
+├── supabase/
+│   ├── migrations/        # Postgres schema
+│   └── functions/       # Edge functions (spotify-import, game-action)
+└── vercel.json            # Vercel deploy config
+```
 
 ## Tech stack
 
-- React 19 + TypeScript + Vite
+- React 19 + TypeScript + Vite + Motion
 - `@spot-the-song/game-engine` (shared rules)
-- Supabase (Postgres + Realtime) for online multiplayer
-- Spotify-inspired dark theme
-
-## Legacy prototype
-
-The original UI shell lives in `legacy/` for reference. The new app replaces it with a working game loop.
+- Supabase (Postgres + Realtime + Edge Functions)
+- PWA via vite-plugin-pwa

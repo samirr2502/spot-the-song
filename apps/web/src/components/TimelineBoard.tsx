@@ -1,54 +1,26 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import type { GameState } from '@spot-the-song/game-engine'
-import {
-  CHALLENGE_COST,
-  describeInsertPosition,
-  getSongById,
-} from '@spot-the-song/game-engine'
+import { getSongById } from '@spot-the-song/game-engine'
+import type { RevealStage } from '../hooks/useRevealSequence'
 import type { PlacementDragSource } from '../hooks/usePlacementDrag'
-import SongCard from './SongCard'
+import SongCard, { getActiveCardFaceMode, getTimelineCardFaceMode } from './SongCard'
 
 type TimelineCardProps = {
-  game: GameState
-  songId: string
+  song: { title: string; artist: string; releaseYear: number }
   isStarter: boolean
-  isRevealed: boolean
-  song: { title: string; artist: string; album: string; releaseYear: number }
+  faceMode: ReturnType<typeof getTimelineCardFaceMode>
 }
 
-function TimelineCard({ game, songId, isStarter, isRevealed, song }: TimelineCardProps) {
-  const isJustRevealed =
-    game.phase === 'reveal' && game.lastClaimResolution?.songId === songId && isRevealed
-  const [hasFlipped, setHasFlipped] = useState(!isJustRevealed)
-
-  useEffect(() => {
-    if (!isJustRevealed) {
-      setHasFlipped(true)
-      return
-    }
-
-    setHasFlipped(false)
-    const timer = window.setTimeout(() => setHasFlipped(true), 500)
-    return () => window.clearTimeout(timer)
-  }, [isJustRevealed, songId])
-
-  const flipped = isRevealed && hasFlipped
-  const showYear =
-    isJustRevealed && !hasFlipped
-      ? song.releaseYear
-      : isStarter && !flipped
-        ? song.releaseYear
-        : undefined
-
+function TimelineCard({ song, isStarter, faceMode }: TimelineCardProps) {
   return (
     <SongCard
       size="timeline"
-      flipped={flipped}
-      albumName={song.album}
+      alwaysOpen
+      faceMode={faceMode}
       title={song.title}
       artist={song.artist}
-      showYear={showYear}
+      showYear={song.releaseYear}
       isStarter={isStarter}
     />
   )
@@ -58,11 +30,12 @@ type TimelineBoardProps = {
   game: GameState
   playerId: string
   interactive?: boolean
+  hasGuessed?: boolean
+  revealStage?: RevealStage
   hoverInsertIndex?: number | null
   pendingInsertIndex?: number | null
   onSelectInsertIndex?: (insertIndex: number) => void
-  pendingSong?: { title: string; artist: string; album: string } | null
-  pendingFlipped?: boolean
+  pendingSong?: { title: string; artist: string; album: string; releaseYear?: number } | null
   isDragging?: boolean
   dragSource?: PlacementDragSource | null
   onPendingDragStart?: (event: ReactPointerEvent<HTMLDivElement>) => void
@@ -73,8 +46,9 @@ type InsertSlotProps = {
   interactive: boolean
   isOpen: boolean
   hasPendingCard: boolean
-  pendingSong?: { title: string; artist: string; album: string }
-  pendingFlipped?: boolean
+  pendingFaceMode: ReturnType<typeof getActiveCardFaceMode>
+  revealStage?: RevealStage
+  pendingSong?: { title: string; artist: string; album: string; releaseYear?: number }
   onSelect: (insertIndex: number) => void
   onPendingDragStart?: (event: ReactPointerEvent<HTMLDivElement>) => void
 }
@@ -84,8 +58,9 @@ function InsertSlot({
   interactive,
   isOpen,
   hasPendingCard,
+  pendingFaceMode,
+  revealStage,
   pendingSong,
-  pendingFlipped = false,
   onSelect,
   onPendingDragStart,
 }: InsertSlotProps) {
@@ -109,10 +84,12 @@ function InsertSlot({
       {hasPendingCard && pendingSong && (
         <SongCard
           size="timeline"
-          flipped={pendingFlipped}
-          albumName={pendingSong.album}
+          alwaysOpen
+          faceMode={pendingFaceMode}
+          revealStage={revealStage}
           title={pendingSong.title}
           artist={pendingSong.artist}
+          showYear={pendingSong.releaseYear}
           draggable
           onPointerDown={(event) => {
             event.stopPropagation()
@@ -128,17 +105,20 @@ export default function TimelineBoard({
   game,
   playerId,
   interactive = false,
+  hasGuessed = false,
+  revealStage,
   hoverInsertIndex = null,
   pendingInsertIndex = null,
   onSelectInsertIndex,
   pendingSong = null,
-  pendingFlipped = false,
   isDragging = false,
   dragSource = null,
   onPendingDragStart,
 }: TimelineBoardProps) {
   const board = game.boards[playerId]
   if (!board) return null
+
+  const pendingFaceMode = getActiveCardFaceMode(hasGuessed, game.phase)
 
   function slotIsOpen(insertIndex: number): boolean {
     if (pendingInsertIndex === insertIndex) return true
@@ -160,8 +140,9 @@ export default function TimelineBoard({
 
   const slotProps = {
     interactive,
+    pendingFaceMode,
+    revealStage,
     pendingSong: pendingSong ?? undefined,
-    pendingFlipped,
     onSelect: handleSelect,
     onPendingDragStart,
   }
@@ -191,17 +172,17 @@ export default function TimelineBoard({
 
           const insertIndex = cardIndex + 1
           const isStarter = songId === board.starterSongId
-          const isRevealed = board.revealedSongIds.includes(songId)
+          const faceMode = getTimelineCardFaceMode(
+            game,
+            songId,
+            isStarter,
+            board.guessedSongIds ?? [],
+            board.revealedSongIds ?? [],
+          )
 
           return (
             <div key={`${songId}-${cardIndex}`} className="timeline-row-segment">
-              <TimelineCard
-                game={game}
-                songId={songId}
-                isStarter={isStarter}
-                isRevealed={isRevealed}
-                song={song}
-              />
+              <TimelineCard isStarter={isStarter} song={song} faceMode={faceMode} />
               <InsertSlot
                 insertIndex={insertIndex}
                 isOpen={slotIsOpen(insertIndex)}
@@ -226,10 +207,38 @@ type PlayerCollectionsProps = {
 }
 
 export function PlayerCollections({ game, activePlayerId }: PlayerCollectionsProps) {
+  const [expandedId, setExpandedId] = useState(activePlayerId ?? game.players[0]?.id ?? '')
+
   return (
-    <div className="collections-grid">
+    <div className="collections-grid collections-grid--accordion">
+      <div className="collections-tabs">
+        {game.players.map((player) => (
+          <button
+            key={player.id}
+            type="button"
+            className={[
+              'collections-tab',
+              expandedId === player.id ? 'collections-tab--active' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            onClick={() => setExpandedId(player.id)}
+          >
+            {player.name}
+            {player.id === activePlayerId && ' ·'}
+          </button>
+        ))}
+      </div>
       {game.players.map((player) => (
-        <div key={player.id} className="collection-panel">
+        <div
+          key={player.id}
+          className={[
+            'collection-panel',
+            expandedId === player.id ? 'collection-panel--expanded' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
           <h4 className="collection-name">
             {player.name}
             {player.id === activePlayerId && <span className="badge">Active</span>}
@@ -237,108 +246,6 @@ export function PlayerCollections({ game, activePlayerId }: PlayerCollectionsPro
           <TimelineBoard game={game} playerId={player.id} />
         </div>
       ))}
-    </div>
-  )
-}
-
-type ChallengePanelProps = {
-  game: GameState
-  onChallenge: (playerId: string) => void
-  onReveal: () => void
-  challengerPlayerId?: string
-}
-
-export function ChallengePanel({
-  game,
-  onChallenge,
-  onReveal,
-  challengerPlayerId,
-}: ChallengePanelProps) {
-  const claim = game.pendingClaim
-  if (!claim) return null
-
-  const claimant = game.players.find((player) => player.id === claim.claimantId)
-  const claimantBoard = game.boards[claim.claimantId]
-  const placementText = claimantBoard
-    ? describeInsertPosition(claim.insertIndex, claimantBoard.cards.length)
-    : 'on their timeline'
-
-  const challengers = game.players.filter((player) => {
-    if (player.id === claim.claimantId) return false
-    if (claim.challengerId) return false
-    if (challengerPlayerId && player.id !== challengerPlayerId) return false
-    const board = game.boards[player.id]
-    return (board?.coins ?? 0) >= CHALLENGE_COST
-  })
-
-  return (
-    <div className="card-panel stack challenge-panel">
-      <h3 className="card-title">Challenge Window</h3>
-      <p className="muted">
-        {claimant?.name} placed a card {placementText}. Spend {CHALLENGE_COST} coin to
-        challenge before the release year is revealed.
-      </p>
-      {claim.challengerId ? (
-        <p className="muted">
-          Challenged by {game.players.find((player) => player.id === claim.challengerId)?.name}.
-        </p>
-      ) : (
-        challengers.length > 0 && (
-          <div className="row">
-            {challengers.map((player) => (
-              <button
-                key={player.id}
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => onChallenge(player.id)}
-              >
-                {player.name} challenges ({CHALLENGE_COST} coin)
-              </button>
-            ))}
-          </div>
-        )
-      )}
-      <button type="button" className="btn btn-primary" onClick={onReveal}>
-        Reveal Year
-      </button>
-    </div>
-  )
-}
-
-type ClaimRevealProps = {
-  game: GameState
-}
-
-export function ClaimReveal({ game }: ClaimRevealProps) {
-  const resolution = game.lastClaimResolution
-  if (!resolution) return null
-
-  const song = getSongById(game, resolution.songId)
-  const winner = resolution.awardedTo
-    ? game.players.find((player) => player.id === resolution.awardedTo)?.name
-    : null
-
-  return (
-    <div className="card-panel stack">
-      <h3 className="card-title">Timeline Result</h3>
-      <p>
-        {song?.title} was released in <strong>{resolution.releaseYear}</strong>.
-      </p>
-      {resolution.discarded && (
-        <p className="muted">Wrong placement and no challenge — card discarded.</p>
-      )}
-      {winner && (
-        <p className="muted">
-          {resolution.placementCorrect
-            ? `${winner} keeps the card.`
-            : `${winner} wins the challenge and collects the card.`}
-        </p>
-      )}
-      {resolution.guessCorrect && (
-        <p className="muted">
-          +{resolution.coinsAwarded} coin for naming the song correctly.
-        </p>
-      )}
     </div>
   )
 }

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   advanceTurn,
+  countVisibleCards,
   createGame,
   createId,
+  getAllSongsInAlbum,
   getScoreboard,
   getSongById,
   isTimerExpired,
@@ -207,6 +209,34 @@ describe('game flow', () => {
     expect(game.currentTurn?.activePlayerId).toBe('player_2')
   })
 
+  it('moves wrong unchallenged placements to the discard pile', () => {
+    let game = startGame(createGame(players, makeAlbums()))
+    const currentSongId = game.currentTurn!.currentSongId
+    const song = getSongById(game, currentSongId)!
+    const wrongIndex = wrongInsertIndex(game, song)
+
+    game = submitPlacement(game, wrongIndex)
+    game = revealClaim(game)
+
+    expect(game.lastClaimResolution?.discarded).toBe(true)
+    expect(game.discardPile).toContain(currentSongId)
+    expect(game.boards.player_1.cards).not.toContain(currentSongId)
+  })
+
+  it('keeps every album card visible across zones', () => {
+    let game = startGame(createGame(players, makeAlbums()))
+    const total = getAllSongsInAlbum(game).length
+    expect(countVisibleCards(game)).toBe(total)
+
+    const song = getSongById(game, game.currentTurn!.currentSongId)!
+    game = submitPlacement(game, correctInsertIndex(game, song))
+    game = revealClaim(game)
+    expect(countVisibleCards(game)).toBe(total)
+
+    game = advanceTurn(game)
+    expect(countVisibleCards(game)).toBe(total)
+  })
+
   it('gives challenged cards to the challenger when placement is wrong', () => {
     let game = startGame(createGame(players, makeAlbums()))
     const currentSongId = game.currentTurn!.currentSongId
@@ -279,6 +309,24 @@ describe('game flow', () => {
 
     expect(game.boards.player_1.guessedSongIds).toContain(currentSongId)
     expect(game.boards.player_1.revealedSongIds).toContain(currentSongId)
+  })
+
+  it('reveals even when legacy boards are missing reveal tracking arrays', () => {
+    let game = startGame(createGame(players, makeAlbums()))
+    const song = getSongById(game, game.currentTurn!.currentSongId)!
+    const activePlayerId = game.currentTurn!.activePlayerId
+
+    game.boards[activePlayerId] = {
+      ...game.boards[activePlayerId],
+      guessedSongIds: undefined as unknown as string[],
+      revealedSongIds: undefined as unknown as string[],
+    }
+
+    game = submitPlacement(game, correctInsertIndex(game, song))
+    game = revealClaim(game)
+
+    expect(game.phase).toBe('reveal')
+    expect(game.boards[activePlayerId].revealedSongIds).toContain(song.id)
   })
 
   it('sorts scoreboard by collected cards then coins', () => {

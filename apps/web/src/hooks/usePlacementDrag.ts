@@ -1,6 +1,23 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 
 export type PlacementDragSource = 'hero' | 'timeline'
+export type DropZone = 'timeline' | 'deck' | 'discard'
+
+function pointInElement(
+  clientX: number,
+  clientY: number,
+  element: Element | null,
+  padding = 12,
+): boolean {
+  if (!element) return false
+  const rect = element.getBoundingClientRect()
+  return (
+    clientX >= rect.left - padding &&
+    clientX <= rect.right + padding &&
+    clientY >= rect.top - padding &&
+    clientY <= rect.bottom + padding
+  )
+}
 
 function findInsertIndex(clientX: number, clientY: number): number | null {
   const row = document.querySelector('.timeline-row--interactive')
@@ -48,11 +65,36 @@ function findInsertIndex(clientX: number, clientY: number): number | null {
   return nearest && nearest.distance < 96 ? nearest.index : null
 }
 
+function findDropZone(clientX: number, clientY: number): DropZone | null {
+  const timelineZone = document.querySelector('[data-drop-zone="timeline"]')
+  if (pointInElement(clientX, clientY, timelineZone, 8) || findInsertIndex(clientX, clientY) !== null) {
+    return 'timeline'
+  }
+
+  const deckZone = document.querySelector('[data-drop-zone="deck"]')
+  if (pointInElement(clientX, clientY, deckZone, 8)) {
+    return 'deck'
+  }
+
+  const discardZone = document.querySelector('[data-drop-zone="discard"]')
+  if (pointInElement(clientX, clientY, discardZone, 8)) {
+    return 'discard'
+  }
+
+  const activeZone = document.querySelector('[data-drop-zone="active"]')
+  if (pointInElement(clientX, clientY, activeZone, 8)) {
+    return 'deck'
+  }
+
+  return null
+}
+
 export function usePlacementDrag(onDrop: (insertIndex: number) => void) {
   const [isDragging, setIsDragging] = useState(false)
   const [dragSource, setDragSource] = useState<PlacementDragSource | null>(null)
   const [pointer, setPointer] = useState({ x: 0, y: 0 })
   const [hoverInsertIndex, setHoverInsertIndex] = useState<number | null>(null)
+  const [hoverDropZone, setHoverDropZone] = useState<DropZone | null>(null)
   const dragStartIndexRef = useRef<number | null>(null)
 
   const startDrag = useCallback(
@@ -63,6 +105,7 @@ export function usePlacementDrag(onDrop: (insertIndex: number) => void) {
       setIsDragging(true)
       setPointer({ x: event.clientX, y: event.clientY })
       setHoverInsertIndex(null)
+      setHoverDropZone(null)
       dragStartIndexRef.current =
         source === 'timeline'
           ? Number(
@@ -93,6 +136,7 @@ export function usePlacementDrag(onDrop: (insertIndex: number) => void) {
     function handleMove(event: PointerEvent) {
       setPointer({ x: event.clientX, y: event.clientY })
       setHoverInsertIndex(findInsertIndex(event.clientX, event.clientY))
+      setHoverDropZone(findDropZone(event.clientX, event.clientY))
     }
 
     function handleUp(event: PointerEvent) {
@@ -105,6 +149,7 @@ export function usePlacementDrag(onDrop: (insertIndex: number) => void) {
       setIsDragging(false)
       setDragSource(null)
       setHoverInsertIndex(null)
+      setHoverDropZone(null)
       dragStartIndexRef.current = null
     }
 
@@ -115,6 +160,7 @@ export function usePlacementDrag(onDrop: (insertIndex: number) => void) {
       setIsDragging(false)
       setDragSource(null)
       setHoverInsertIndex(null)
+      setHoverDropZone(null)
       dragStartIndexRef.current = null
     }
 
@@ -134,6 +180,7 @@ export function usePlacementDrag(onDrop: (insertIndex: number) => void) {
     dragSource,
     pointer,
     hoverInsertIndex,
+    hoverDropZone,
     startHeroDrag,
     startTimelineDrag,
   }

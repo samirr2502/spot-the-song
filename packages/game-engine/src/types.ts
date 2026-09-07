@@ -76,12 +76,20 @@ export type GameSettings = {
   guessTimeSeconds: number
 }
 
+export type CardZones = {
+  deck: string[]
+  active: string | null
+  timelines: Record<string, string[]>
+  discard: string[]
+}
+
 export type GameState = {
   id: string
   phase: GamePhase
   players: Player[]
   albums: Album[]
   deck: string[]
+  discardPile: string[]
   playedSongIds: string[]
   currentTurn: Turn | null
   turnHistory: TurnHistoryEntry[]
