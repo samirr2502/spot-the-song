@@ -39,6 +39,7 @@ type TimelineBoardProps = {
   isDragging?: boolean
   dragSource?: PlacementDragSource | null
   onPendingDragStart?: (event: ReactPointerEvent<HTMLDivElement>) => void
+  titleLabel?: string
 }
 
 type InsertSlotProps = {
@@ -114,6 +115,7 @@ export default function TimelineBoard({
   isDragging = false,
   dragSource = null,
   onPendingDragStart,
+  titleLabel = 'Timeline',
 }: TimelineBoardProps) {
   const board = game.boards[playerId]
   if (!board) return null
@@ -150,7 +152,16 @@ export default function TimelineBoard({
   return (
     <div className="timeline-board">
       <div className="timeline-header">
-        <span className="timeline-title">Timeline</span>
+        <span
+          className={[
+            'timeline-title',
+            titleLabel === 'Your timeline' ? 'timeline-title--yours' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
+          {titleLabel}
+        </span>
         <span className="timeline-meta">{board.coins} coins</span>
       </div>
 

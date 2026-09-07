@@ -7,10 +7,9 @@ import AudioGate from '../AudioGate'
 import AudioPlayer from '../AudioPlayer'
 import GameCardZones from '../GameCardZones'
 import GuessInput from '../GuessInput'
-import PlayerList from '../PlayerList'
-import Scoreboard from '../Scoreboard'
+import PlayerAvatarBar from '../PlayerAvatarBar'
 import TurnBanner from '../TurnBanner'
-import TimelineBoard, { PlayerCollections } from '../TimelineBoard'
+import TimelineBoard from '../TimelineBoard'
 import OutcomeBanner from './OutcomeBanner'
 import PhaseActionBar from './PhaseActionBar'
 import RevealCeremony from './RevealCeremony'
@@ -98,123 +97,163 @@ export default function GamePlayView({
     : undefined
   const songForDisplay = currentSong ?? engineSong
 
+  const viewingPlayerId =
+    mode === 'online' && localPlayerId && !isMyTurn && game.phase === 'playing'
+      ? localPlayerId
+      : activePlayerId
+
+  const showInteractiveTimeline =
+    game.phase === 'playing' && (mode === 'local' || isMyTurn)
+
+  const timelineTitle = (() => {
+    if (showInteractiveTimeline) return 'Your timeline'
+    if (mode === 'online' && viewingPlayerId === localPlayerId) return 'Your timeline'
+    const player = game.players.find((p) => p.id === viewingPlayerId)
+    return `${player?.name ?? 'Player'}'s timeline`
+  })()
+
   return (
-    <div className="game-board">
-      <TurnBanner game={game} now={now} />
-
-      {error && <div className="alert error">{error}</div>}
-
-      <AudioGate unlocked={audioUnlocked} onUnlock={onAudioUnlock} />
-
-      <RevealCeremony stage={revealStage}>
-        <GameCardZones
+    <div className="game-board-shell">
+      <header className="game-board-top">
+        <PlayerAvatarBar
           game={game}
-          showTopCard={showTopOnStack}
-          hasGuessed={hasGuessed}
-          revealStage={revealStage}
-          draggable={canPlace && !cardPlacedOnTimeline}
-          isDragging={isDragging}
-          dragSource={dragSource}
-          pointer={pointer}
-          hoverDropZone={hoverDropZone}
-          onTopDragStart={canPlace && !cardPlacedOnTimeline ? startHeroDrag : undefined}
+          activePlayerId={activePlayerId}
+          localPlayerId={localPlayerId}
+          mode={mode}
+          now={now}
         />
-      </RevealCeremony>
+        {game.phase !== 'playing' && (
+          <TurnBanner game={game} now={now} variant="compact" />
+        )}
+      </header>
 
-      <div className="audio-controls">
+      <section className="game-board-center">
+        {error && <div className="alert error">{error}</div>}
+
+        {!audioUnlocked && (
+          <div className="game-board-overlay">
+            <AudioGate unlocked={audioUnlocked} onUnlock={onAudioUnlock} />
+          </div>
+        )}
+
+        <div className="game-board-hero-zone">
+          <RevealCeremony stage={revealStage}>
+            <GameCardZones
+              game={game}
+              variant="hero"
+              showTopCard={showTopOnStack}
+              hasGuessed={hasGuessed}
+              revealStage={revealStage}
+              draggable={canPlace && !cardPlacedOnTimeline}
+              isDragging={isDragging}
+              dragSource={dragSource}
+              pointer={pointer}
+              hoverDropZone={hoverDropZone}
+              onTopDragStart={canPlace && !cardPlacedOnTimeline ? startHeroDrag : undefined}
+            />
+          </RevealCeremony>
+        </div>
+
+        <div className="game-board-center-actions">
+          {onReplayAudio && audioUnlocked && songForDisplay?.audioUrl && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={onReplayAudio}>
+              Replay clip
+            </button>
+          )}
+
+          {(game.phase === 'playing' || game.phase === 'challenge') &&
+            (mode === 'local' || isMyTurn) && (
+              <GuessInput
+                compact
+                disabled={!canGuess}
+                alreadyGuessed={hasGuessed}
+                onSubmit={actions.onGuess}
+              />
+            )}
+        </div>
+
         <AudioPlayer
           audioUrl={songForDisplay?.audioUrl ?? null}
           playing={
             (game.phase === 'playing' || game.phase === 'challenge') && audioUnlocked
           }
         />
-        {onReplayAudio && audioUnlocked && songForDisplay?.audioUrl && (
-          <button type="button" className="btn btn-ghost btn-sm" onClick={onReplayAudio}>
-            Replay clip
-          </button>
-        )}
-      </div>
 
-      {(game.phase === 'playing' || game.phase === 'challenge') &&
-        (mode === 'local' || isMyTurn) && (
-          <GuessInput
-            disabled={!canGuess}
-            alreadyGuessed={hasGuessed}
-            onSubmit={actions.onGuess}
-          />
-        )}
+        {(game.phase === 'reveal' && game.lastClaimResolution) || game.phase === 'finished' ? (
+          <div className="game-board-overlay game-board-overlay--status">
+            {game.phase === 'reveal' && game.lastClaimResolution && (
+              <OutcomeBanner game={game} />
+            )}
+            {game.phase === 'finished' && (
+              <div className="game-board-finished">
+                {mode === 'local' && (
+                  <Link to="/local/setup" className="btn btn-primary btn-lg">
+                    Play again
+                  </Link>
+                )}
+                <Link to="/" className="btn btn-ghost btn-lg">
+                  Home
+                </Link>
+              </div>
+            )}
+          </div>
+        ) : null}
+      </section>
 
-      {game.phase === 'playing' && (mode === 'local' || isMyTurn) && (
-        <div
-          className={[
-            'card-panel stack placement-panel card-drop-zone',
-            hoverDropZone === 'timeline' ? 'card-drop-zone--active' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          data-drop-zone="timeline"
-        >
+      <footer className="game-board-bottom">
+        {showInteractiveTimeline ? (
+          <div
+            className={[
+              'card-panel stack placement-panel card-drop-zone',
+              hoverDropZone === 'timeline' ? 'card-drop-zone--active' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            data-drop-zone="timeline"
+          >
+            <TimelineBoard
+              game={game}
+              playerId={activePlayerId}
+              titleLabel={timelineTitle}
+              interactive
+              hasGuessed={hasGuessed}
+              revealStage={revealStage}
+              hoverInsertIndex={hoverInsertIndex}
+              pendingInsertIndex={selectedInsertIndex}
+              onSelectInsertIndex={onSelectInsertIndex}
+              pendingSong={
+                songForDisplay
+                  ? {
+                      title: songForDisplay.title,
+                      artist: songForDisplay.artist,
+                      album: songForDisplay.album,
+                      releaseYear: songForDisplay.releaseYear,
+                    }
+                  : null
+              }
+              isDragging={isDragging}
+              dragSource={dragSource}
+              onPendingDragStart={cardPlacedOnTimeline ? startTimelineDrag : undefined}
+            />
+            <button
+              type="button"
+              className="btn btn-primary placement-confirm-btn"
+              disabled={selectedInsertIndex === null}
+              onClick={actions.onConfirmPlacement}
+            >
+              Confirm placement
+            </button>
+          </div>
+        ) : (
           <TimelineBoard
             game={game}
-            playerId={activePlayerId}
-            interactive
+            playerId={viewingPlayerId}
+            titleLabel={timelineTitle}
             hasGuessed={hasGuessed}
             revealStage={revealStage}
-            hoverInsertIndex={hoverInsertIndex}
-            pendingInsertIndex={selectedInsertIndex}
-            onSelectInsertIndex={onSelectInsertIndex}
-            pendingSong={
-              songForDisplay
-                ? {
-                    title: songForDisplay.title,
-                    artist: songForDisplay.artist,
-                    album: songForDisplay.album,
-                    releaseYear: songForDisplay.releaseYear,
-                  }
-                : null
-            }
-            isDragging={isDragging}
-            dragSource={dragSource}
-            onPendingDragStart={cardPlacedOnTimeline ? startTimelineDrag : undefined}
           />
-          <button
-            type="button"
-            className="btn btn-primary placement-confirm-btn"
-            disabled={selectedInsertIndex === null}
-            onClick={actions.onConfirmPlacement}
-          >
-            Confirm placement
-          </button>
-        </div>
-      )}
-
-      {game.phase === 'reveal' && game.lastClaimResolution && (
-        <OutcomeBanner game={game} />
-      )}
-
-      {game.phase === 'finished' && (
-        <div className="centered row game-finished-actions">
-          {mode === 'local' && (
-            <Link to="/local/setup" className="btn btn-primary btn-lg">
-              Play again
-            </Link>
-          )}
-          <Link to="/" className="btn btn-ghost btn-lg">
-            Home
-          </Link>
-        </div>
-      )}
-
-      <PlayerCollections game={game} activePlayerId={activePlayerId} />
-
-      <div className="row game-board-stats">
-        <div style={{ flex: 1 }}>
-          <PlayerList players={game.players} activePlayerId={activePlayerId} />
-        </div>
-        <div style={{ flex: 1 }}>
-          <Scoreboard game={game} />
-        </div>
-      </div>
+        )}
+      </footer>
 
       <PhaseActionBar
         game={game}

@@ -1,6 +1,15 @@
 import { test, expect } from '@playwright/test'
 
+async function dismissOnboarding(page: import('@playwright/test').Page) {
+  await page.addInitScript(() => {
+    localStorage.setItem('sts-onboarding-done', 'true')
+  })
+}
+
 test.describe('Spot the Song UI', () => {
+  test.beforeEach(async ({ page }) => {
+    await dismissOnboarding(page)
+  })
   test('home screen snapshot', async ({ page }) => {
     await page.goto('/')
     await expect(page.getByRole('heading', { name: 'Spot the Song' })).toBeVisible()

@@ -29,6 +29,10 @@ export default function CardPile({
 }: CardPileProps) {
   const visibleIds = songIds.slice(-MAX_VISIBLE)
   const hiddenCount = Math.max(0, songIds.length - MAX_VISIBLE)
+  const stackWidth =
+    size === 'timeline'
+      ? 72 + Math.max(0, visibleIds.length - 1) * 10 + (hiddenCount > 0 ? 32 : 0)
+      : 200
 
   return (
     <div
@@ -49,7 +53,10 @@ export default function CardPile({
       {songIds.length === 0 ? (
         <div className="card-pile-empty muted">{emptyLabel}</div>
       ) : (
-        <div className={`card-pile-stack card-pile-stack--${size}`}>
+        <div
+          className={`card-pile-stack card-pile-stack--${size}`}
+          style={{ width: `${stackWidth}px`, maxWidth: '100%' }}
+        >
           {visibleIds.map((songId, index) => {
             const song = getSongById(game, songId)
             if (!song) return null

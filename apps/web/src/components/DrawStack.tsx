@@ -17,6 +17,7 @@ type DrawStackProps = {
   dragging?: boolean
   isDropTarget?: boolean
   onTopDragStart?: (event: ReactPointerEvent<HTMLDivElement>) => void
+  layout?: 'default' | 'board-hero'
 }
 
 const MAX_VISIBLE_LAYERS = 6
@@ -31,6 +32,7 @@ export default function DrawStack({
   dragging = false,
   isDropTarget = false,
   onTopDragStart,
+  layout = 'default',
 }: DrawStackProps) {
   const topSong = topSongId ? getSongById(game, topSongId) : undefined
   const underCards = [...deckSongIds].reverse().slice(0, MAX_VISIBLE_LAYERS - 1)
@@ -40,6 +42,7 @@ export default function DrawStack({
     <div
       className={[
         'draw-stack',
+        layout === 'board-hero' ? 'draw-stack--board-hero' : '',
         'card-drop-zone',
         isDropTarget ? 'card-drop-zone--active' : '',
       ]

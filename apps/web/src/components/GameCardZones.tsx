@@ -19,6 +19,7 @@ type GameCardZonesProps = {
   pointer?: { x: number; y: number }
   hoverDropZone?: DropZone | null
   onTopDragStart?: (event: ReactPointerEvent<HTMLDivElement>) => void
+  variant?: 'full' | 'hero'
 }
 
 export default function GameCardZones({
@@ -32,6 +33,7 @@ export default function GameCardZones({
   pointer = { x: 0, y: 0 },
   hoverDropZone = null,
   onTopDragStart,
+  variant = 'full',
 }: GameCardZonesProps) {
   const zones = getCardZones(game)
   const activeSong = zones.active ? getSongById(game, zones.active) : undefined
@@ -41,6 +43,53 @@ export default function GameCardZones({
     showTopCard && zones.active && !(isDragging && dragSource === 'hero')
       ? zones.active
       : null
+
+  const dragPortal =
+    isDragging &&
+    activeSong &&
+    createPortal(
+      <div
+        className={[
+          'drag-floating-card',
+          dragSource === 'hero' ? 'drag-floating-card--hero' : 'drag-floating-card--timeline',
+          hoverDropZone ? 'drag-floating-card--compact' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        style={{ left: pointer.x, top: pointer.y }}
+      >
+        <SongCard
+          size={dragSource === 'hero' ? 'hero' : 'timeline'}
+          faceMode={faceMode}
+          revealStage={revealStage}
+          alwaysOpen
+          title={activeSong.title}
+          artist={activeSong.artist}
+          showYear={activeSong.releaseYear}
+        />
+      </div>,
+      document.body,
+    )
+
+  if (variant === 'hero') {
+    return (
+      <section className="game-board-hero">
+        <DrawStack
+          game={game}
+          deckSongIds={zones.deck}
+          topSongId={topSongId}
+          faceMode={faceMode}
+          revealStage={revealStage}
+          draggable={draggable}
+          dragging={isDragging && dragSource === 'hero'}
+          isDropTarget={hoverDropZone === 'deck'}
+          onTopDragStart={onTopDragStart}
+          layout="board-hero"
+        />
+        {dragPortal}
+      </section>
+    )
+  }
 
   return (
     <section className="card-zones-panel stack">
@@ -68,31 +117,7 @@ export default function GameCardZones({
         />
       </div>
 
-      {isDragging &&
-        activeSong &&
-        createPortal(
-          <div
-            className={[
-              'drag-floating-card',
-              dragSource === 'hero' ? 'drag-floating-card--hero' : 'drag-floating-card--timeline',
-              hoverDropZone ? 'drag-floating-card--compact' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            style={{ left: pointer.x, top: pointer.y }}
-          >
-            <SongCard
-              size={dragSource === 'hero' ? 'hero' : 'timeline'}
-              faceMode={faceMode}
-              revealStage={revealStage}
-              alwaysOpen
-              title={activeSong.title}
-              artist={activeSong.artist}
-              showYear={activeSong.releaseYear}
-            />
-          </div>,
-          document.body,
-        )}
+      {dragPortal}
     </section>
   )
 }

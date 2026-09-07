@@ -19,11 +19,11 @@ const SLIDES = [
   },
 ]
 
-const PLAY_ROUTES = ['/local/play', '/online/play']
-
 export default function OnboardingTooltip() {
   const location = useLocation()
-  const isPlayRoute = PLAY_ROUTES.some((route) => location.pathname.startsWith(route))
+  const isHome = location.pathname === '/'
+  const isPlayRoute = location.pathname.startsWith('/local/play') ||
+    location.pathname.startsWith('/online/play')
 
   const [visible, setVisible] = useState(() => {
     if (typeof localStorage === 'undefined') return false
@@ -31,7 +31,7 @@ export default function OnboardingTooltip() {
   })
   const [slide, setSlide] = useState(0)
 
-  if (!visible || isPlayRoute) return null
+  if (!visible || !isHome || isPlayRoute) return null
 
   function dismiss() {
     localStorage.setItem(ONBOARDING_KEY, 'true')
