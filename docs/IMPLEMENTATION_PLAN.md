@@ -1,0 +1,243 @@
+# Spot the Song — Implementation Plan
+
+Phased build plan. **Implement one phase at a time.** Update completion notes at the bottom of each phase section when done.
+
+Reference: [`PRODUCT_CANVAS.md`](./PRODUCT_CANVAS.md)
+
+---
+
+## PHASE 0 — FOUNDATION
+
+**Goal:** Stable clean project — app loads, client connects to server, visual system established.
+
+### Tasks
+
+- [x] Vite React TypeScript client (`/client`)
+- [x] Node/Express/Socket.IO server (`/server`)
+- [x] Shared TypeScript package (`/shared`)
+- [x] npm workspaces + dev scripts (`npm run dev`, `build`, `typecheck`, `lint`)
+- [x] `.env.example` files (client + server)
+- [x] Health check endpoint (`GET /health`)
+- [x] Socket connection + connection status UI
+- [x] React Router initial routes (landing, home placeholders)
+- [x] Sketch UI primitives (Button, Card, Input, Checkbox, Radio, Divider, Avatar, Modal, Timer, Score, SongCard)
+- [x] Responsive mobile-first layout
+- [x] Remove legacy `apps/`, `packages/`, `legacy/` folders
+- [x] Planning docs (this file, canvas, screen flow, state machine)
+
+### Deliverable
+
+App loads at `http://localhost:5173`, server at `http://localhost:3001`, socket shows connected, sketch design system visible on landing/home.
+
+### Phase 0 completion notes
+
+_Completed 2026-09-07._
+
+- Monorepo restructured to `client/`, `server/`, `shared/`, `docs/`.
+- Old `apps/web`, `packages/game-engine`, and `legacy/` removed.
+- Spotify import edge function preserved under `supabase/functions/spotify-import/` for Phase 3 port.
+- Phase 0 delivers health check, socket ping/pong, sketch primitives demo on landing, and route shell for Phase 1.
+
+---
+
+## PHASE 1 — ROOMS + LOBBY
+
+**Goal:** Players can create and join games reliably.
+
+### Tasks
+
+- [x] Persist player name in sessionStorage
+- [x] `client:create-room` / `client:join-room` handlers
+- [x] 6-character room codes (server-generated)
+- [x] QR code on lobby screen
+- [x] Live player list via `server:room-state`
+- [x] Host designation + host-only Start button
+- [x] Basic reconnect (same session id)
+- [x] Disconnect cleanup (grace period optional)
+- [x] In-memory `RoomManager` on server
+- [x] Lobby UI screen wired to socket
+
+### Deliverable
+
+Multiple devices enter one lobby and see each other live.
+
+### Phase 1 completion notes
+
+_Completed 2026-09-07._
+
+- `RoomManager` handles create/join/reconnect/leave/start with 30s disconnect grace.
+- Lobby at `/room/:code` shows QR (join link), room code, live player list, host start button.
+- Session persisted in sessionStorage for reconnect after refresh.
+- Start transitions room to `how-to-play` and navigates to `/room/:code/how-to-play`.
+
+---
+
+## PHASE 2 — ALL IN GUESS MVP
+
+**Goal:** First fully playable game loop.
+
+### Tasks
+
+- [ ] All In setup screen (guess checklist, rounds, clip duration)
+- [ ] Validate at least one guess field selected
+- [ ] `MockMusicProvider` + seed tracks
+- [ ] Server random track selection per round
+- [ ] Round timer (server-authoritative)
+- [ ] Per-field answer inputs + submit
+- [ ] Port normalized matching to `shared/src/scoring/matching.ts`
+- [ ] Field-by-field scoring + speed bonus
+- [ ] Round results UI + mini leaderboard
+- [ ] Multi-round loop + final results screen
+- [ ] `client:submit-answers` / `server:round-results`
+
+### Deliverable
+
+Complete multiplayer All In game start to finish with mock tracks.
+
+### Phase 2 completion notes
+
+_(pending)_
+
+---
+
+## PHASE 3 — MUSIC PROVIDER / SPOTIFY
+
+**Goal:** Replace mock tracks with real playlist/album data.
+
+### Tasks
+
+- [ ] `MusicProvider` interface on server
+- [ ] Port `spotify-import` logic to `SpotifyProvider`
+- [ ] Parse playlist/album links in setup flow
+- [ ] Populate normalized `Track[]` in room
+- [ ] Handle missing previews gracefully
+- [ ] Loading + error UI on setup
+- [ ] Game logic unchanged when provider swaps
+
+### Deliverable
+
+Host creates game from Spotify playlist/album link.
+
+### Phase 3 completion notes
+
+_(pending)_
+
+---
+
+## PHASE 4 — TURN-BASED GUESS
+
+**Goal:** Spoken-answer party mode with voting.
+
+### Tasks
+
+- [ ] Active player rotation
+- [ ] Server timers for guess + voting phases
+- [ ] Active player UI (prompt, no text entry)
+- [ ] Voting UI for other players (YES/NO per field)
+- [ ] Block active player from voting
+- [ ] Majority calculation (tie = NO)
+- [ ] Scoring + round results + leaderboard
+
+### Deliverable
+
+Full turn-based Guess game loop.
+
+### Phase 4 completion notes
+
+_(pending)_
+
+---
+
+## PHASE 5 — SING ALONG
+
+**Goal:** Social karaoke scoring.
+
+### Tasks
+
+- [ ] Sing Along setup in Turns flow
+- [ ] Active player challenge display + timer
+- [ ] Audience 1–10 rating UI
+- [ ] One rating per player enforcement
+- [ ] Average calculation + results
+
+### Deliverable
+
+Complete Sing Along game loop.
+
+### Phase 5 completion notes
+
+_(pending)_
+
+---
+
+## PHASE 6 — TIMELINE
+
+**Goal:** Chronological placement gameplay.
+
+### Tasks
+
+- [ ] Starter song per player on join/start
+- [ ] Player-specific timeline state on server
+- [ ] Hidden incoming card + drag/drop placement (mobile touch)
+- [ ] Before / between / after drop zones
+- [ ] Year reveal + server validation
+- [ ] Optional title/artist bonus guesses
+- [ ] Turn rotation + results
+
+### Deliverable
+
+Complete playable Timeline mode.
+
+### Phase 6 completion notes
+
+_(pending)_
+
+---
+
+## PHASE 7 — POLISH + RELIABILITY
+
+**Goal:** Finished feel without scope creep.
+
+### Tasks
+
+- [ ] Reconnect mid-game
+- [ ] Host leave → promote or end
+- [ ] Player leave mid-round
+- [ ] Empty Spotify / duplicate track handling
+- [ ] Loading and error states everywhere
+- [ ] Sketch transitions + animation polish
+- [ ] Audio state indicators
+- [ ] Mobile Safari + Android Chrome testing
+- [ ] Accessibility pass
+- [ ] Unit tests: scoring + state transitions
+
+### Do NOT add
+
+Accounts, profiles, friends, currency, achievements, cosmetics, progression, admin dashboard.
+
+### Phase 7 completion notes
+
+_(pending)_
+
+---
+
+## Dev commands
+
+```bash
+npm install
+npm run dev          # client + server concurrently
+npm run typecheck    # all workspaces
+npm run build        # production build
+npm run lint         # eslint on client
+```
+
+## Environment
+
+| Variable | Where | Phase |
+|----------|-------|-------|
+| `PORT` | server | 0 |
+| `CLIENT_ORIGIN` | server | 0 |
+| `VITE_SERVER_URL` | client | 0 |
+| `SPOTIFY_CLIENT_ID` | server | 3 |
+| `SPOTIFY_CLIENT_SECRET` | server | 3 |
+| `SUPABASE_URL` | server (optional) | 7+ |

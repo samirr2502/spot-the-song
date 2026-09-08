@@ -1,15 +1,8 @@
 # Spot the Song
 
-A music guessing game where players listen to clips, guess songs, and build chronological timelines. Pass-and-play locally or play online from any phone.
+Multiplayer music party game — hand-sketched UI, Socket.IO realtime, Spotify playlists.
 
-## Features
-
-- **Local mode** — pass-and-play on one device (no backend required)
-- **Online mode** — each player on their phone; sync via Supabase Realtime
-- **Smooth reveals** — animated title and year flips with sound effects
-- **Fair online play** — server-validated guesses via edge function
-- **PWA** — add to home screen on iOS and Android
-- **Spotify import** — paste an album or playlist link to load songs
+**Start here:** [`docs/PRODUCT_CANVAS.md`](./docs/PRODUCT_CANVAS.md) and [`docs/IMPLEMENTATION_PLAN.md`](./docs/IMPLEMENTATION_PLAN.md)
 
 ## Quick start
 
@@ -18,54 +11,60 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 — choose **Local Game** to play immediately.
+- Client: http://localhost:5173
+- Server: http://localhost:3001 (`GET /health`)
 
-## Deploy (Vercel — recommended)
+Copy env examples:
 
-1. Push to GitHub
-2. Import the repo in [Vercel](https://vercel.com)
-3. Set environment variables:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-4. Deploy — `vercel.json` is preconfigured
-
-## Supabase setup (online mode)
-
-1. Create a Supabase project
-2. Run all migrations in order: `supabase/migrations/001` through `007`
-3. Copy `apps/web/.env.example` to `apps/web/.env`
-4. Deploy edge functions:
-   ```bash
-   supabase functions deploy spotify-import
-   supabase functions deploy game-action
-   ```
-5. Set edge function secrets (Spotify credentials for album import)
-
-Migration `007` blocks direct client updates to turns — game mutations must go through the `game-action` edge function.
-
-## Scripts
-
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start the web app |
-| `npm run build` | Build engine + web |
-| `npm test` | Run game engine unit tests |
+```bash
+cp client/.env.example client/.env
+cp server/.env.example server/.env
+```
 
 ## Project structure
 
 ```
 spot-the-song/
-├── apps/web/              # React + Vite frontend
-├── packages/game-engine/  # Pure TS game logic + tests
-├── supabase/
-│   ├── migrations/        # Postgres schema
-│   └── functions/       # Edge functions (spotify-import, game-action)
-└── vercel.json            # Vercel deploy config
+├── client/          # React + Vite + sketch UI
+├── server/          # Express + Socket.IO (authoritative game state)
+├── shared/          # Types, socket contracts, scoring (later)
+├── docs/            # Product canvas, plans, flows, state machine
+└── supabase/        # Spotify import edge fn (reference for Phase 3)
 ```
+
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Client + server concurrently |
+| `npm run build` | Production build (shared → server → client) |
+| `npm run typecheck` | TypeScript all workspaces |
+| `npm run lint` | ESLint (client) |
+| `npm start` | Run built server |
+
+## Current phase
+
+**Phase 1 — Rooms + Lobby** ✓
+
+- Create/join rooms with 6-character codes
+- Live lobby with QR code and player list
+- Host-only start → how-to-play screen
+- Session reconnect after page refresh
+
+Next: **Phase 2 — All In Guess MVP**
+
+## Spotify credentials
+
+Set on the server for Phase 3+:
+
+- `SPOTIFY_CLIENT_ID`
+- `SPOTIFY_CLIENT_SECRET`
+
+Existing import logic lives in `supabase/functions/spotify-import/` to port into `server/src/music/`.
 
 ## Tech stack
 
-- React 19 + TypeScript + Vite + Motion
-- `@spot-the-song/game-engine` (shared rules)
-- Supabase (Postgres + Realtime + Edge Functions)
-- PWA via vite-plugin-pwa
+- React 19, Vite, TypeScript
+- Express, Socket.IO
+- Shared types package
+- Supabase optional (future); in-memory rooms for now
