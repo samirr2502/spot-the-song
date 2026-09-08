@@ -13,6 +13,7 @@ import type {
   RoomSessionPayload,
   RoundResultsPayload,
   SubmitAnswersPayload,
+  VotePayload,
 } from '@spot-the-song/shared'
 import {
   clearRoomSession,
@@ -35,6 +36,7 @@ type RoomContextValue = {
   startGame: () => Promise<boolean>
   ackHowToPlay: () => Promise<boolean>
   submitAnswers: (answers: SubmitAnswersPayload) => Promise<boolean>
+  submitVotes: (votes: VotePayload) => Promise<boolean>
   continueAfterResults: () => Promise<boolean>
   playAgain: () => Promise<boolean>
   clearError: () => void
@@ -262,6 +264,30 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     [socket],
   )
 
+  const submitVotes = useCallback(
+    async (votes: VotePayload): Promise<boolean> => {
+      if (!socket) return false
+
+      setBusy(true)
+      setError(null)
+
+      return new Promise((resolve) => {
+        socket.emit('client:submit-votes', votes, (result) => {
+          setBusy(false)
+
+          if (!result.ok) {
+            setError(result.message)
+            resolve(false)
+            return
+          }
+
+          resolve(true)
+        })
+      })
+    },
+    [socket],
+  )
+
   const continueAfterResults = useCallback(async (): Promise<boolean> => {
     if (!socket) return false
 
@@ -325,6 +351,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       startGame,
       ackHowToPlay,
       submitAnswers,
+      submitVotes,
       continueAfterResults,
       playAgain,
       clearError: () => setError(null),
@@ -342,6 +369,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       startGame,
       ackHowToPlay,
       submitAnswers,
+      submitVotes,
       continueAfterResults,
       playAgain,
     ],

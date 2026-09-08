@@ -1,0 +1,205 @@
+import { type FormEvent, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import {
+  DEFAULT_GAME_SETTINGS,
+  DEFAULT_GUESS_FIELDS,
+  type GameSettings,
+  type GuessFields,
+  hasAtLeastOneGuessField,
+} from '@spot-the-song/shared'
+import { SketchButton, SketchCard, SketchCheckbox, SketchDivider, SketchInput } from '../components/sketch'
+import { useRoom } from '../context/RoomContext'
+import { previewMusicLink, type MusicPreviewResult } from '../lib/musicApi'
+
+export function TurnGuessSetupPage() {
+  const navigate = useNavigate()
+  const { createRoom, error, busy, clearError } = useRoom()
+
+  const [spotifyUrl, setSpotifyUrl] = useState('')
+  const [guessFields, setGuessFields] = useState<GuessFields>({ ...DEFAULT_GUESS_FIELDS })
+  const [roundCount, setRoundCount] = useState(String(DEFAULT_GAME_SETTINGS.roundCount))
+  const [clipDuration, setClipDuration] = useState(String(DEFAULT_GAME_SETTINGS.clipDurationSeconds))
+  const [guessTimer, setGuessTimer] = useState(String(DEFAULT_GAME_SETTINGS.guessTimerSeconds ?? 30))
+  const [localError, setLocalError] = useState<string | null>(null)
+  const [preview, setPreview] = useState<MusicPreviewResult | null>(null)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+
+  const settings: GameSettings = useMemo(
+    () => ({
+      playMode: 'turns',
+      turnGame: 'guess',
+      guessFields,
+      roundCount: Number.parseInt(roundCount, 10) || 1,
+      clipDurationSeconds: Number.parseInt(clipDuration, 10) || 15,
+      guessTimerSeconds: Number.parseInt(guessTimer, 10) || 30,
+    }),
+    [guessFields, roundCount, clipDuration, guessTimer],
+  )
+
+  function toggleField(field: keyof GuessFields) {
+    setGuessFields((current) => ({ ...current, [field]: !current[field] }))
+  }
+
+  async function handlePreview() {
+    setPreviewError(null)
+    setPreview(null)
+    setPreviewLoading(true)
+
+    try {
+      const result = await previewMusicLink(spotifyUrl)
+      setPreview(result)
+
+      if (result.totalTracks < settings.roundCount) {
+        setPreviewError(
+          `Only ${result.totalTracks} tracks — lower rounds to ${result.totalTracks} or fewer.`,
+        )
+      }
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : 'Could not load link')
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    clearError()
+    setLocalError(null)
+
+    if (!hasAtLeastOneGuessField(guessFields)) {
+      setLocalError('Select at least one field to guess.')
+      return
+    }
+
+    const result = await createRoom(settings, spotifyUrl.trim() || undefined)
+    if (result) {
+      navigate(`/room/${result.code}`)
+    }
+  }
+
+  const displayError = localError || error
+
+  return (
+    <main className="page">
+      <header className="page-header">
+        <h1 className="page-title page-title--sm">Turn Guess setup</h1>
+        <p className="page-subtitle">Guess aloud — friends vote on each field</p>
+      </header>
+
+      <SketchCard tiltSeed="turn-guess-setup">
+        <form className="setup-form" onSubmit={handleSubmit}>
+          <SketchInput
+            label="Spotify playlist or album link"
+            name="spotifyUrl"
+            placeholder="https://open.spotify.com/playlist/…"
+            value={spotifyUrl}
+            onChange={(event) => {
+              setSpotifyUrl(event.target.value)
+              setPreview(null)
+              setPreviewError(null)
+            }}
+            autoComplete="off"
+          />
+
+          <SketchButton
+            type="button"
+            variant="ghost"
+            fullWidth
+            disabled={previewLoading || busy}
+            onClick={handlePreview}
+          >
+            {previewLoading ? 'Loading…' : spotifyUrl.trim() ? 'Check link' : 'Preview demo playlist'}
+          </SketchButton>
+
+          {preview ? (
+            <SketchCard tiltSeed="preview-turn" className="music-preview">
+              <p className="music-preview__name">{preview.name}</p>
+              <p className="music-preview__meta">
+                {preview.totalTracks} tracks · {preview.playableCount} with previews
+                {preview.skippedCount > 0 ? ` · ${preview.skippedCount} without preview` : ''}
+              </p>
+              <p className="music-preview__source">
+                {preview.source === 'spotify' ? 'Spotify' : 'Demo playlist'}
+              </p>
+            </SketchCard>
+          ) : null}
+
+          {previewError ? <p className="form-error">{previewError}</p> : null}
+
+          <SketchDivider label="game settings" />
+
+          <fieldset className="setup-fieldset">
+            <legend className="setup-fieldset__legend">Active player must guess</legend>
+            <div className="setup-checks">
+              <SketchCheckbox
+                label="Title"
+                checked={guessFields.title}
+                onChange={() => toggleField('title')}
+              />
+              <SketchCheckbox
+                label="Artist"
+                checked={guessFields.artist}
+                onChange={() => toggleField('artist')}
+              />
+              <SketchCheckbox
+                label="Album"
+                checked={guessFields.album}
+                onChange={() => toggleField('album')}
+              />
+              <SketchCheckbox
+                label="Year"
+                checked={guessFields.year}
+                onChange={() => toggleField('year')}
+              />
+            </div>
+          </fieldset>
+
+          <SketchInput
+            label="Number of rounds"
+            name="roundCount"
+            type="number"
+            min={1}
+            max={20}
+            value={roundCount}
+            onChange={(event) => setRoundCount(event.target.value)}
+          />
+
+          <SketchInput
+            label="Clip duration (seconds)"
+            name="clipDuration"
+            type="number"
+            min={5}
+            max={60}
+            value={clipDuration}
+            onChange={(event) => setClipDuration(event.target.value)}
+          />
+
+          <SketchInput
+            label="Guess time (seconds)"
+            name="guessTimer"
+            type="number"
+            min={10}
+            max={120}
+            value={guessTimer}
+            onChange={(event) => setGuessTimer(event.target.value)}
+          />
+
+          {displayError ? <p className="form-error">{displayError}</p> : null}
+
+          <SketchButton type="submit" fullWidth disabled={busy || previewLoading}>
+            {busy ? 'Loading music & creating…' : 'Create lobby'}
+          </SketchButton>
+        </form>
+      </SketchCard>
+
+      <SketchDivider />
+
+      <Link to="/create/turns">
+        <SketchButton variant="ghost" fullWidth>
+          Back
+        </SketchButton>
+      </Link>
+    </main>
+  )
+}

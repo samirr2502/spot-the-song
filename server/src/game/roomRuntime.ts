@@ -1,5 +1,6 @@
 import type { RoundResultsPayload, SubmitAnswersPayload } from '@spot-the-song/shared'
 import type { Track } from '@spot-the-song/shared'
+import type { VotePayload } from '@spot-the-song/shared'
 
 export type StoredAnswer = {
   answers: SubmitAnswersPayload
@@ -11,6 +12,8 @@ export type RoomRuntime = {
   usedTrackIds: string[]
   currentTrack: Track | null
   roundAnswers: Map<string, StoredAnswer>
+  roundVotes: Map<string, VotePayload>
+  turnRotationIndex: number
   roundStartedAt: number | null
   howToPlayAcks: Set<string>
   roundTimer: ReturnType<typeof setTimeout> | null
@@ -25,6 +28,8 @@ export function createRoomRuntime(trackPool: Track[]): RoomRuntime {
     usedTrackIds: [],
     currentTrack: null,
     roundAnswers: new Map(),
+    roundVotes: new Map(),
+    turnRotationIndex: 0,
     roundStartedAt: null,
     howToPlayAcks: new Set(),
     roundTimer: null,

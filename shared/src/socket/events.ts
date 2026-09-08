@@ -1,5 +1,6 @@
 import type { GameSettings, GameRoom } from '../types/game.js'
 import type { RoundResultsPayload, SubmitAnswersPayload } from '../types/round.js'
+import type { VotePayload } from '../types/voting.js'
 
 export type RoomSessionPayload = {
   playerId: string
@@ -45,6 +46,10 @@ export type ClientToServerEvents = {
   'client:ack-how-to-play': (callback: (result: ActionResult) => void) => void
   'client:submit-answers': (
     payload: SubmitAnswersPayload,
+    callback: (result: ActionResult) => void,
+  ) => void
+  'client:submit-votes': (
+    payload: VotePayload,
     callback: (result: ActionResult) => void,
   ) => void
   'client:continue-after-results': (callback: (result: ActionResult) => void) => void

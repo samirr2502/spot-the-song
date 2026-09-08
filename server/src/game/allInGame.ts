@@ -45,6 +45,7 @@ export function scoreRound(
 
   const payload: RoundResultsPayload = {
     roundIndex: room.currentRound.index,
+    mode: 'all-in',
     track: { ...track },
     playerResults,
     leaderboard: buildLeaderboard(room),
@@ -56,6 +57,7 @@ export function scoreRound(
 
 export function resetRoundRuntime(runtime: RoomRuntime): void {
   runtime.roundAnswers = new Map()
+  runtime.roundVotes = new Map()
   runtime.roundStartedAt = null
   runtime.currentTrack = null
 }
@@ -81,7 +83,14 @@ export function allConnectedSubmitted(room: GameRoom, runtime: RoomRuntime): boo
 export function syncCurrentRoundPublic(room: GameRoom, runtime: RoomRuntime): void {
   if (!room.currentRound) return
 
-  room.currentRound.submittedPlayerIds = getSubmittedPlayerIds(runtime)
+  if (room.currentRound.phase === 'voting') {
+    room.currentRound.submittedPlayerIds = Array.from(runtime.roundVotes.keys())
+  } else if (room.currentRound.phase === 'answering') {
+    room.currentRound.submittedPlayerIds = getSubmittedPlayerIds(runtime)
+  } else {
+    room.currentRound.submittedPlayerIds = []
+  }
+
   room.currentRound.roundTrack = runtime.currentTrack ? toPublicTrack(runtime.currentTrack) : null
   room.currentRound.trackId = runtime.currentTrack?.id ?? null
 }

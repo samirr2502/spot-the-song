@@ -38,18 +38,32 @@ export function RoomHowToPlayPage() {
     )
   }
 
+  const isTurnGuess = room.settings.playMode === 'turns' && room.settings.turnGame === 'guess'
+
   return (
     <main className="page">
       <SketchCard tiltSeed="how-to-play">
-        <h1 className="page-title page-title--sm">How to play — All In</h1>
+        <h1 className="page-title page-title--sm">
+          How to play — {isTurnGuess ? 'Turn Guess' : 'All In'}
+        </h1>
         <p className="page-subtitle">Room {normalizedCode}</p>
 
-        <ul className="how-to-list">
-          <li>Listen to the clip when each round starts.</li>
-          <li>Fill in every field the host enabled (title, artist, album, year).</li>
-          <li>Submit before time runs out — faster answers earn a speed bonus.</li>
-          <li>Most total points after all rounds wins.</li>
-        </ul>
+        {isTurnGuess ? (
+          <ul className="how-to-list">
+            <li>Each round, one player is active — they listen and guess aloud.</li>
+            <li>Everyone else votes YES or NO on each field the host enabled.</li>
+            <li>Majority wins per field — ties count as NO.</li>
+            <li>The active player earns points for accepted fields.</li>
+            <li>Most total points after all rounds wins.</li>
+          </ul>
+        ) : (
+          <ul className="how-to-list">
+            <li>Listen to the clip when each round starts.</li>
+            <li>Fill in every field the host enabled (title, artist, album, year).</li>
+            <li>Submit before time runs out — faster answers earn a speed bonus.</li>
+            <li>Most total points after all rounds wins.</li>
+          </ul>
+        )}
 
         <p className="lobby-players__status">
           Ready: {readyIds.length} / {connectedCount}

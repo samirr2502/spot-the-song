@@ -44,13 +44,13 @@ spot-the-song/
 
 ## Current phase
 
-**Phase 3 — Spotify provider** ✓
+**Phase 4 — Turn-based Guess** ✓
 
-- Paste Spotify playlist/album links in All In setup
-- Preview track counts before creating lobby
-- Demo playlist fallback when link is empty
+- Turns mode: one active player guesses aloud each round
+- Others vote YES/NO per field; majority scoring (ties = NO)
+- Setup at `/create/turns/guess` with Spotify or demo tracks
 
-Next: **Phase 4 — Turn-based Guess**
+Next: **Phase 5 — Sing Along**
 
 ## Spotify credentials
 

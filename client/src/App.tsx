@@ -3,7 +3,7 @@ import { ConnectionStatus } from './components/ConnectionStatus'
 import { RequireName } from './components/RequireName'
 import { SketchLayout } from './components/sketch/SketchLayout'
 import { AllInSetupPage } from './pages/AllInSetupPage'
-import { AllInPlayPage } from './pages/AllInPlayPage'
+import { GamePlayPage } from './pages/GamePlayPage'
 import { CreateModePage } from './pages/CreateModePage'
 import { FinalResultsPage } from './pages/FinalResultsPage'
 import { HomePage } from './pages/HomePage'
@@ -11,6 +11,8 @@ import { JoinPage } from './pages/JoinPage'
 import { LandingPage } from './pages/LandingPage'
 import { LobbyPage } from './pages/LobbyPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
+import { TurnGuessSetupPage } from './pages/TurnGuessSetupPage'
+import { TurnsModePage } from './pages/TurnsModePage'
 import { RoomHowToPlayPage } from './pages/RoomHowToPlayPage'
 
 export function App() {
@@ -53,7 +55,19 @@ export function App() {
         />
         <Route
           path="/create/turns"
-          element={<PlaceholderPage title="Turns setup" phase="Phase 4–6" />}
+          element={
+            <RequireName>
+              <TurnsModePage />
+            </RequireName>
+          }
+        />
+        <Route
+          path="/create/turns/guess"
+          element={
+            <RequireName>
+              <TurnGuessSetupPage />
+            </RequireName>
+          }
         />
         <Route
           path="/how-to-play"
@@ -71,7 +85,7 @@ export function App() {
           path="/room/:code/play"
           element={
             <RequireName>
-              <AllInPlayPage />
+              <GamePlayPage />
             </RequireName>
           }
         />

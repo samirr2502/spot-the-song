@@ -28,6 +28,8 @@ export type PlayerRoundResult = {
 
 export type RoundResultsPayload = {
   roundIndex: number
+  mode?: 'all-in' | 'turn-guess'
+  activePlayerId?: string
   track: {
     id: string
     title: string
@@ -37,6 +39,12 @@ export type RoundResultsPayload = {
     artworkUrl?: string
     previewUrl?: string
   }
+  fieldOutcomes?: Array<{
+    field: GuessFieldKey
+    accepted: boolean
+    yesVotes: number
+    noVotes: number
+  }>
   playerResults: PlayerRoundResult[]
   leaderboard: Array<{ playerId: string; name: string; score: number }>
 }

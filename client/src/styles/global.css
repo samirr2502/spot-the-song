@@ -349,6 +349,65 @@ a {
   background: color-mix(in srgb, var(--paper) 70%, var(--ink) 30%);
 }
 
+.mode-option--disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.mode-option__soon {
+  margin-top: var(--space-xs);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.turn-active-banner {
+  text-align: center;
+}
+
+.turn-active-name {
+  margin: 0;
+  font-family: var(--font-hand);
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.vote-field {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.vote-field__label {
+  margin: 0;
+  font-family: var(--font-hand);
+  font-size: 1.3rem;
+}
+
+.vote-field__buttons {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.vote-outcome-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.vote-outcome-list__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-family: var(--font-hand);
+  font-size: 1.1rem;
+}
+
+.vote-outcome-list__item--accepted {
+  color: var(--ink);
+  font-weight: 700;
+}
+
 .lobby-code-card {
   text-align: center;
 }

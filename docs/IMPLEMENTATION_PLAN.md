@@ -141,13 +141,13 @@ _Completed 2026-09-07._
 
 ### Tasks
 
-- [ ] Active player rotation
-- [ ] Server timers for guess + voting phases
-- [ ] Active player UI (prompt, no text entry)
-- [ ] Voting UI for other players (YES/NO per field)
-- [ ] Block active player from voting
-- [ ] Majority calculation (tie = NO)
-- [ ] Scoring + round results + leaderboard
+- [x] Active player rotation
+- [x] Server timers for guess + voting phases
+- [x] Active player UI (prompt, no text entry)
+- [x] Voting UI for other players (YES/NO per field)
+- [x] Block active player from voting
+- [x] Majority calculation (tie = NO)
+- [x] Scoring + round results + leaderboard
 
 ### Deliverable
 
@@ -155,7 +155,10 @@ Full turn-based Guess game loop.
 
 ### Phase 4 completion notes
 
-_(pending)_
+- Turn Guess setup at `/create/turns/guess` with Spotify or demo tracks.
+- Server: `turnGuessGame.ts`, rotation via `turnRotationIndex`, phases `playing` → `voting` → reveal.
+- Client: `TurnGuessPlayPage` with active-player prompt and YES/NO voting UI; `GamePlayPage` routes by mode.
+- Socket: `client:submit-votes` with majority scoring (100 pts per accepted field).
 
 ---
 

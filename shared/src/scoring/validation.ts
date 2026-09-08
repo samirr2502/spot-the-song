@@ -5,6 +5,7 @@ export function hasAtLeastOneGuessField(fields: GuessFields): boolean {
 }
 
 export function validateGameSettings(settings: {
+  playMode?: 'all-in' | 'turns'
   guessFields: GuessFields
   roundCount: number
   clipDurationSeconds: number
