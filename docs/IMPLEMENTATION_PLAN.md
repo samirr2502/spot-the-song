@@ -266,18 +266,20 @@ See [`SPOTIFY_ARCHITECTURE.md`](./SPOTIFY_ARCHITECTURE.md) for full design.
 
 ### Phase 8b — Multiplayer integration (next — do not start until 8a verified)
 
-- [ ] Setup: Connect Spotify + clip duration UI
-- [ ] Socket events: host play command, clip-ended, privacy-safe round payloads
-- [ ] Host-only playback during rounds; guests see “Listen…”
-- [ ] Reveal: Open in Spotify link
-- [ ] Remove `ClipPlayer` preview_url path from gameplay
+- [x] Setup: Connect Spotify + clip duration UI (15s / 30s)
+- [x] Socket events: host play command, clip-ended, privacy-safe round payloads
+- [x] Host-only playback during rounds; guests see “Listen…”
+- [x] Reveal: Open in Spotify link
+- [x] Remove `ClipPlayer` preview_url path from gameplay
 
-### Phase 8a completion notes
+### Phase 8b completion notes
 
 _Completed 2026-09-08._
 
-- Standalone test at `/dev/spotify` — verify Premium account + player init before 8b.
-- Multiplayer still uses legacy preview `ClipPlayer` until Phase 8b.
+- Host receives `server:spotify-play-track`; room receives `server:round-clip-ended`.
+- Pre-reveal room state exposes track `id` only — no title/artist/preview.
+- Lobby blocks start until host connects Spotify (clip modes).
+- `/dev/spotify` still available for isolated playback testing.
 
 ---
 

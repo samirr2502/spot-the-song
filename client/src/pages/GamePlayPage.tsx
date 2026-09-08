@@ -1,5 +1,6 @@
 import { useParams } from 'react-router-dom'
 import { RoomSessionGate } from '../components/RoomSessionGate'
+import { SpotifyPlaybackProvider } from '../context/SpotifyPlaybackContext'
 import { useRoom } from '../context/RoomContext'
 import { AllInPlayPage } from './AllInPlayPage'
 import { SingAlongPlayPage } from './SingAlongPlayPage'
@@ -29,7 +30,9 @@ export function GamePlayPage() {
 
   return (
     <RoomSessionGate roomCode={code} loadingMessage="Syncing game…">
-      <GamePlayRouter />
+      <SpotifyPlaybackProvider>
+        <GamePlayRouter />
+      </SpotifyPlaybackProvider>
     </RoomSessionGate>
   )
 }

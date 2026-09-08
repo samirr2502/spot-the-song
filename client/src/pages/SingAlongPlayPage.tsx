@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { MAX_RATING, MIN_RATING } from '@spot-the-song/shared'
-import { ClipPlayer } from '../components/ClipPlayer'
 import {
   SketchButton,
   SketchCard,
@@ -106,7 +105,7 @@ export function SingAlongPlayPage() {
           <h1 className="page-title page-title--sm">Reveal</h1>
         </header>
 
-        <SketchSongCard track={roundResults.track} />
+        <SketchSongCard track={roundResults.track} showSpotifyLink />
 
         {activePlayer ? (
           <SketchCard tiltSeed="sing-active-result">
@@ -177,15 +176,6 @@ export function SingAlongPlayPage() {
           <p className="turn-active-name">{activePlayer.name}</p>
         </SketchCard>
       ) : null}
-
-      <ClipPlayer
-        previewUrl={round?.roundTrack?.previewUrl}
-        clipDurationSeconds={room.settings.clipDurationSeconds}
-        playing={
-          room.status === 'playing' &&
-          (round?.phase === 'round-intro' || round?.phase === 'playing' || round?.phase === 'rating')
-        }
-      />
 
       {round?.phase === 'playing' ? (
         <SketchTimer

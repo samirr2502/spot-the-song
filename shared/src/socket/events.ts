@@ -1,3 +1,24 @@
+import type {
+  RoundAnsweringPayload,
+  RoundClipEndedPayload,
+  RoundRevealPayload,
+  RoundStartedPayload,
+  SpotifyPlaybackErrorPayload,
+  SpotifyPlaybackStartedPayload,
+  SpotifyPlayTrackPayload,
+  SpotifyPlayerReadyPayload,
+} from './spotifyEvents.js'
+
+export type {
+  RoundAnsweringPayload,
+  RoundClipEndedPayload,
+  RoundRevealPayload,
+  RoundStartedPayload,
+  SpotifyPlaybackErrorPayload,
+  SpotifyPlaybackStartedPayload,
+  SpotifyPlayTrackPayload,
+  SpotifyPlayerReadyPayload,
+} from './spotifyEvents.js'
 import type { GameSettings, GameRoom } from '../types/game.js'
 import type { PlaceCardPayload, TimelineBonusPayload } from '../types/timeline.js'
 import type { RatingPayload } from '../types/rating.js'
@@ -27,6 +48,11 @@ export type ServerToClientEvents = {
   'server:player-left': (payload: { playerId: string }) => void
   'server:phase-changed': (payload: { status: GameRoom['status'] }) => void
   'server:round-results': (payload: RoundResultsPayload) => void
+  'server:spotify-play-track': (payload: SpotifyPlayTrackPayload) => void
+  'server:round-clip-ended': (payload: RoundClipEndedPayload) => void
+  'server:round-started': (payload: RoundStartedPayload) => void
+  'server:round-answering': (payload: RoundAnsweringPayload) => void
+  'server:round-reveal': (payload: RoundRevealPayload) => void
   'server:error': (payload: { message: string }) => void
 }
 
@@ -67,6 +93,19 @@ export type ClientToServerEvents = {
     callback: (result: ActionResult) => void,
   ) => void
   'client:continue-after-results': (callback: (result: ActionResult) => void) => void
+  'client:spotify-player-ready': (
+    payload: SpotifyPlayerReadyPayload,
+    callback?: (result: ActionResult) => void,
+  ) => void
+  'client:spotify-playback-started': (
+    payload: SpotifyPlaybackStartedPayload,
+    callback?: (result: ActionResult) => void,
+  ) => void
+  'client:spotify-playback-error': (
+    payload: SpotifyPlaybackErrorPayload,
+    callback?: (result: ActionResult) => void,
+  ) => void
+  'client:spotify-retry-playback': (callback: (result: ActionResult) => void) => void
   'client:play-again': (callback: (result: ActionResult) => void) => void
   'client:leave-room': (callback?: (result: ActionResult) => void) => void
 }

@@ -37,6 +37,23 @@ describe('scorePlayerRound', () => {
 
     expect(result.fieldScores).toHaveLength(2)
     expect(result.fieldScores.every((entry) => entry.correct)).toBe(true)
+    expect(result.speedBonus).toBeGreaterThan(0)
     expect(result.totalRoundPoints).toBeGreaterThan(200)
+  })
+
+  it('does not award speed bonus when every guess is wrong', () => {
+    const result = scorePlayerRound(
+      'p1',
+      { title: 'Wrong', artist: 'Wrong' },
+      track,
+      { title: true, artist: true, album: false, year: false },
+      1_000,
+      0,
+      30_000,
+    )
+
+    expect(result.fieldScores.every((entry) => !entry.correct)).toBe(true)
+    expect(result.speedBonus).toBe(0)
+    expect(result.totalRoundPoints).toBe(0)
   })
 })

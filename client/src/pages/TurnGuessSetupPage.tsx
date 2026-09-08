@@ -8,6 +8,7 @@ import {
   hasAtLeastOneGuessField,
 } from '@spot-the-song/shared'
 import { SketchButton, SketchCard, SketchCheckbox, SketchDivider, SketchInput } from '../components/sketch'
+import { SpotifyConnectSection } from '../components/SpotifyConnectSection'
 import { useRoom } from '../context/RoomContext'
 import { useSocketContext } from '../context/SocketContext'
 import { previewMusicLink, type MusicPreviewResult } from '../lib/musicApi'
@@ -129,6 +130,12 @@ export function TurnGuessSetupPage() {
 
           {previewError ? <p className="form-error">{previewError}</p> : null}
 
+          <SpotifyConnectSection
+            returnTo="/create/turns/guess"
+            clipDurationSeconds={Number.parseInt(clipDuration, 10) || 30}
+            onClipDurationChange={(seconds) => setClipDuration(String(seconds))}
+          />
+
           <SketchDivider label="game settings" />
 
           <fieldset className="setup-fieldset">
@@ -165,16 +172,6 @@ export function TurnGuessSetupPage() {
             max={20}
             value={roundCount}
             onChange={(event) => setRoundCount(event.target.value)}
-          />
-
-          <SketchInput
-            label="Clip duration (seconds)"
-            name="clipDuration"
-            type="number"
-            min={5}
-            max={60}
-            value={clipDuration}
-            onChange={(event) => setClipDuration(event.target.value)}
           />
 
           <SketchInput

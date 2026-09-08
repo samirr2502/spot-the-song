@@ -64,6 +64,10 @@ export function pickRandomTrack(runtime: RoomRuntime): Track | null {
   return track
 }
 
+export function toMinimalRoundTrack(track: Track): { id: string } {
+  return { id: track.id }
+}
+
 export function toPublicTrack(track: Track) {
   return {
     id: track.id,

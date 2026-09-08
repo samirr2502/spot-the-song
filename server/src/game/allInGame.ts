@@ -1,7 +1,7 @@
 import type { GameRoom, RoundResultsPayload, SubmitAnswersPayload } from '@spot-the-song/shared'
 import { scorePlayerRound } from '@spot-the-song/shared'
 import type { RoomRuntime, StoredAnswer } from './roomRuntime.js'
-import { toPublicTrack, toRevealTrack } from './roomRuntime.js'
+import { toMinimalRoundTrack, toPublicTrack, toRevealTrack } from './roomRuntime.js'
 
 export function buildLeaderboard(room: GameRoom) {
   return room.players
@@ -97,7 +97,11 @@ export function syncCurrentRoundPublic(room: GameRoom, runtime: RoomRuntime): vo
     room.currentRound.submittedPlayerIds = []
   }
 
-  room.currentRound.roundTrack = runtime.currentTrack ? toPublicTrack(runtime.currentTrack) : null
+  room.currentRound.roundTrack = runtime.currentTrack
+    ? room.currentRound.phase === 'reveal' || room.status === 'round-results'
+      ? toPublicTrack(runtime.currentTrack)
+      : toMinimalRoundTrack(runtime.currentTrack)
+    : null
   room.currentRound.trackId = runtime.currentTrack?.id ?? null
 
   const isSingAlong = room.settings.playMode === 'turns' && room.settings.turnGame === 'sing'
@@ -127,6 +131,7 @@ export function toPublicRoom(room: GameRoom, runtime: RoomRuntime | undefined): 
     trackPoolSize: runtime?.trackPool.length ?? room.trackPool.length,
     playlistName: runtime?.playlistName,
     playableTrackCount: runtime?.trackPool.filter((track) => track.spotifyUri).length,
+    musicSource: runtime?.musicSource,
     currentRound: room.currentRound ? { ...room.currentRound } : null,
     readyPlayerIds: runtime ? Array.from(runtime.howToPlayAcks) : room.readyPlayerIds,
   }

@@ -36,8 +36,9 @@ export async function fetchSpotifyAccessToken(): Promise<SpotifyAccessTokenRespo
   return data
 }
 
-export function startSpotifyLogin(): void {
-  window.location.href = '/api/spotify/login'
+export function startSpotifyLogin(returnTo = '/dev/spotify'): void {
+  const path = returnTo.startsWith('/') ? returnTo : '/dev/spotify'
+  window.location.href = `/api/spotify/login?returnTo=${encodeURIComponent(path)}`
 }
 
 export async function disconnectSpotify(): Promise<void> {

@@ -43,8 +43,8 @@ export function scorePlayerRound(
   }
 
   const fieldPoints = fieldScores.reduce((sum, entry) => sum + entry.points, 0)
-  const hasAnyAnswer = enabledFields.some((field) => (answers[field] ?? '').trim())
-  const speedBonus = hasAnyAnswer
+  const hasAnyCorrect = fieldScores.some((entry) => entry.correct)
+  const speedBonus = hasAnyCorrect
     ? computeSpeedBonus(submittedAt, roundStartedAt, endsAt)
     : 0
 

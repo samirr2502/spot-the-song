@@ -1,5 +1,5 @@
 export function getClientOrigin(): string {
-  return process.env.CLIENT_ORIGIN || 'http://localhost:5173'
+  return process.env.CLIENT_ORIGIN || 'http://127.0.0.1:5173'
 }
 
 export function isAllowedClientOrigin(

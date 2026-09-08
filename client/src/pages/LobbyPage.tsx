@@ -2,6 +2,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { RoomSessionGate } from '../components/RoomSessionGate'
+import { SpotifyConnectSection, useSpotifyConnected } from '../components/SpotifyConnectSection'
 import { SketchAvatar, SketchButton, SketchCard, SketchDivider } from '../components/sketch'
 import { useRoom } from '../context/RoomContext'
 import { buildJoinUrl } from '../lib/session'
@@ -11,6 +12,7 @@ function LobbyContent() {
   const navigate = useNavigate()
   const { code = '' } = useParams()
   const { room, session, isHost, error, busy, startGame, leaveRoom, clearError } = useRoom()
+  const { connected: spotifyConnected, loading: spotifyLoading } = useSpotifyConnected()
 
   const normalizedCode = code.toUpperCase()
   const joinUrl = buildJoinUrl(normalizedCode)
@@ -36,6 +38,10 @@ function LobbyContent() {
   }
 
   if (!room || !session) return null
+
+  const needsSpotify =
+    room.settings.playMode === 'all-in' ||
+    (room.settings.playMode === 'turns' && room.settings.turnGame !== 'sing')
 
   return (
     <main className="page page--lobby page--fade-in">
@@ -79,10 +85,21 @@ function LobbyContent() {
         </ul>
       </section>
 
+      {isHost && needsSpotify && !spotifyLoading && !spotifyConnected ? (
+        <SketchCard tiltSeed="lobby-spotify" className="lobby-wait-card">
+          <p>Connect Spotify before starting — playback runs on your device.</p>
+          <SpotifyConnectSection returnTo={`/room/${normalizedCode}`} showClipDuration={false} />
+        </SketchCard>
+      ) : null}
+
       {error ? <p className="form-error">{error}</p> : null}
 
       {isHost ? (
-        <SketchButton fullWidth disabled={busy} onClick={handleStart}>
+        <SketchButton
+          fullWidth
+          disabled={busy || (needsSpotify && !spotifyConnected)}
+          onClick={handleStart}
+        >
           {busy ? 'Starting…' : 'Start game'}
         </SketchButton>
       ) : (

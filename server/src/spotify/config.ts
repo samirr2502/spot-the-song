@@ -10,7 +10,7 @@ export function getSpotifyConfig(clientOrigin: string): SpotifyConfig | null {
   const clientSecret = process.env.SPOTIFY_CLIENT_SECRET?.trim()
   const redirectUri =
     process.env.SPOTIFY_REDIRECT_URI?.trim() ||
-    `http://localhost:${process.env.PORT || 3001}/api/spotify/callback`
+    `http://127.0.0.1:${process.env.PORT || 3001}/api/spotify/callback`
 
   if (!clientId || !clientSecret) return null
 

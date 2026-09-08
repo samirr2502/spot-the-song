@@ -1,4 +1,4 @@
-import type { GameRoom, GameSettings, PlaceCardPayload, Player, RatingPayload, RoundResultsPayload, SubmitAnswersPayload, TimelineBonusPayload, VotePayload } from '@spot-the-song/shared'
+import type { GameRoom, GameSettings, PlaceCardPayload, Player, RatingPayload, RoundResultsPayload, SpotifyPlayTrackPayload, RoundClipEndedPayload, SubmitAnswersPayload, TimelineBonusPayload, VotePayload } from '@spot-the-song/shared'
 import { DEFAULT_GAME_SETTINGS, validateGameSettings, validateSingAlongSettings, validateTimelineSettings } from '@spot-the-song/shared'
 import {
   allConnectedSubmitted,
@@ -36,8 +36,13 @@ import {
   createRoomRuntime,
   pickRandomTrack,
   type RoomRuntime,
-  toPublicTrack,
+  toMinimalRoundTrack,
 } from '../game/roomRuntime.js'
+import {
+  buildSpotifyPlayPayload,
+  clipDurationMs,
+  usesClipPhase,
+} from '../game/roundClip.js'
 import { countSpotifyTracks, MIN_SPOTIFY_TRACKS } from '../music/types.js'
 import { resolveMusicImport } from '../music/resolveMusicImport.js'
 import { generateRoomCode, isValidRoomCode, normalizeRoomCode } from './code.js'
@@ -66,6 +71,8 @@ export type SimpleResult =
 export type RoomEmitHandlers = {
   onRoomUpdated: (room: GameRoom) => void
   onRoundResults: (roomId: string, payload: RoundResultsPayload) => void
+  onSpotifyPlayTrack: (roomId: string, hostPlayerId: string, payload: SpotifyPlayTrackPayload) => void
+  onRoundClipEnded: (roomId: string, payload: RoundClipEndedPayload) => void
 }
 
 export class RoomManager {
@@ -617,6 +624,9 @@ export class RoomManager {
 
     if (wasHost) {
       this.promoteHost(room)
+      if (room.currentRound?.phase === 'clip-playing' && runtime) {
+        this.emitSpotifyPlayForCurrentRound(roomId)
+      }
     }
 
     if (room.status === 'playing' && runtime) {
@@ -743,9 +753,6 @@ export class RoomManager {
       return { ok: true, room: this.getPublicRoom(roomId)! }
     }
 
-    const guessTimerMs = (room.settings.guessTimerSeconds ?? 30) * 1000
-    const now = Date.now()
-
     room.status = 'playing'
     room.currentRound = {
       index: roundIndex,
@@ -753,7 +760,7 @@ export class RoomManager {
       activePlayerId: null,
       trackId: track.id,
       endsAt: null,
-      roundTrack: toPublicTrack(track),
+      roundTrack: toMinimalRoundTrack(track),
       submittedPlayerIds: [],
     }
 
@@ -763,19 +770,36 @@ export class RoomManager {
       if (!liveRoom || !liveRuntime || !liveRoom.currentRound) return
       if (liveRoom.status !== 'playing') return
 
-      liveRuntime.roundStartedAt = Date.now()
-      liveRoom.currentRound.phase = 'answering'
-      liveRoom.currentRound.endsAt = Date.now() + guessTimerMs
-      syncCurrentRoundPublic(liveRoom, liveRuntime)
+      if (usesClipPhase(liveRoom)) {
+        this.beginClipPhase(roomId, () => this.openAllInAnswering(roomId))
+        return
+      }
 
-      this.emitHandlers?.onRoomUpdated(this.getPublicRoom(roomId)!)
-
-      liveRuntime.roundTimer = setTimeout(() => {
-        void this.finishAllInRound(roomId)
-      }, guessTimerMs)
+      this.openAllInAnswering(roomId)
     }, ROUND_INTRO_MS)
 
     return { ok: true, room: this.getPublicRoom(roomId)! }
+  }
+
+  private openAllInAnswering(roomId: string): void {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime || !room.currentRound) return
+    if (room.status !== 'playing') return
+
+    clearRoundTimer(runtime)
+
+    const guessTimerMs = (room.settings.guessTimerSeconds ?? 30) * 1000
+    runtime.roundStartedAt = Date.now()
+    room.currentRound.phase = 'answering'
+    room.currentRound.endsAt = Date.now() + guessTimerMs
+    syncCurrentRoundPublic(room, runtime)
+
+    this.emitHandlers?.onRoomUpdated(this.getPublicRoom(roomId)!)
+
+    runtime.roundTimer = setTimeout(() => {
+      void this.finishAllInRound(roomId)
+    }, guessTimerMs)
   }
 
   private startTurnGuessRound(roomId: string, roundIndex: number): SimpleResult {
@@ -803,7 +827,7 @@ export class RoomManager {
       activePlayerId: activePlayer.id,
       trackId: track.id,
       endsAt: null,
-      roundTrack: toPublicTrack(track),
+      roundTrack: toMinimalRoundTrack(track),
       submittedPlayerIds: [],
     }
 
@@ -813,19 +837,31 @@ export class RoomManager {
       if (!liveRoom || !liveRuntime || !liveRoom.currentRound) return
       if (liveRoom.status !== 'playing') return
 
-      liveRuntime.roundStartedAt = Date.now()
-      liveRoom.currentRound.phase = 'playing'
-      liveRoom.currentRound.endsAt = Date.now() + guessTimerMs
-      syncCurrentRoundPublic(liveRoom, liveRuntime)
-
-      this.emitHandlers?.onRoomUpdated(this.getPublicRoom(roomId)!)
-
-      liveRuntime.roundTimer = setTimeout(() => {
-        this.openTurnGuessVoting(roomId)
-      }, guessTimerMs)
+      this.beginClipPhase(roomId, () => this.openTurnGuessPlaying(roomId))
     }, ROUND_INTRO_MS)
 
     return { ok: true, room: this.getPublicRoom(roomId)! }
+  }
+
+  private openTurnGuessPlaying(roomId: string): void {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime || !room.currentRound) return
+    if (room.status !== 'playing') return
+
+    clearRoundTimer(runtime)
+
+    const guessTimerMs = (room.settings.guessTimerSeconds ?? 30) * 1000
+    runtime.roundStartedAt = Date.now()
+    room.currentRound.phase = 'playing'
+    room.currentRound.endsAt = Date.now() + guessTimerMs
+    syncCurrentRoundPublic(room, runtime)
+
+    this.emitHandlers?.onRoomUpdated(this.getPublicRoom(roomId)!)
+
+    runtime.roundTimer = setTimeout(() => {
+      this.openTurnGuessVoting(roomId)
+    }, guessTimerMs)
   }
 
   private openTurnGuessVoting(roomId: string): void {
@@ -873,7 +909,7 @@ export class RoomManager {
       activePlayerId: activePlayer.id,
       trackId: track.id,
       endsAt: null,
-      roundTrack: toPublicTrack(track),
+      roundTrack: toMinimalRoundTrack(track),
       submittedPlayerIds: [],
     }
 
@@ -960,7 +996,6 @@ export class RoomManager {
     }
 
     const activePlayer = getActivePlayerForTurn(room, runtime)
-    const listenTimerMs = room.settings.clipDurationSeconds * 1000
 
     room.status = 'playing'
     room.currentRound = {
@@ -969,7 +1004,7 @@ export class RoomManager {
       activePlayerId: activePlayer.id,
       trackId: track.id,
       endsAt: null,
-      roundTrack: toPublicTrack(track),
+      roundTrack: toMinimalRoundTrack(track),
       submittedPlayerIds: [],
     }
 
@@ -979,16 +1014,7 @@ export class RoomManager {
       if (!liveRoom || !liveRuntime || !liveRoom.currentRound) return
       if (liveRoom.status !== 'playing') return
 
-      liveRuntime.roundStartedAt = Date.now()
-      liveRoom.currentRound.phase = 'playing'
-      liveRoom.currentRound.endsAt = Date.now() + listenTimerMs
-      syncCurrentRoundPublic(liveRoom, liveRuntime)
-
-      this.emitHandlers?.onRoomUpdated(this.getPublicRoom(roomId)!)
-
-      liveRuntime.roundTimer = setTimeout(() => {
-        this.openTimelineAnswering(roomId)
-      }, listenTimerMs)
+      this.beginClipPhase(roomId, () => this.openTimelineAnswering(roomId))
     }, ROUND_INTRO_MS)
 
     return { ok: true, room: this.getPublicRoom(roomId)! }
@@ -1132,7 +1158,9 @@ export class RoomManager {
     const phase = room.currentRound.phase
 
     if (this.isTurnGuess(room)) {
-      if (phase === 'playing' || phase === 'round-intro') {
+      if (phase === 'clip-playing') {
+        this.openTurnGuessPlaying(roomId)
+      } else if (phase === 'playing' || phase === 'round-intro') {
         this.openTurnGuessVoting(roomId)
       }
       return
@@ -1146,10 +1174,75 @@ export class RoomManager {
     }
 
     if (this.isTimeline(room)) {
-      if (phase === 'playing' || phase === 'answering' || phase === 'round-intro') {
+      if (phase === 'clip-playing') {
+        this.openTimelineAnswering(roomId)
+      } else if (phase === 'playing' || phase === 'answering' || phase === 'round-intro') {
         void this.finishTimelineRound(roomId)
       }
     }
+  }
+
+  retrySpotifyPlayback(roomId: string, hostPlayerId: string): SimpleResult {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime || !room.currentRound) {
+      return { ok: false, message: 'No active round.' }
+    }
+
+    if (room.hostPlayerId !== hostPlayerId) {
+      return { ok: false, message: 'Only the host can retry playback.' }
+    }
+
+    if (room.currentRound.phase !== 'clip-playing') {
+      return { ok: false, message: 'Playback can only be retried during the song clip.' }
+    }
+
+    this.emitSpotifyPlayForCurrentRound(roomId)
+    return { ok: true, room: this.getPublicRoom(roomId)! }
+  }
+
+  private beginClipPhase(roomId: string, onClipEnded: () => void): void {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime || !room.currentRound || !runtime.currentTrack) {
+      onClipEnded()
+      return
+    }
+
+    const durationMs = clipDurationMs(room.settings)
+    const roundIndex = room.currentRound.index
+
+    room.currentRound.phase = 'clip-playing'
+    room.currentRound.endsAt = Date.now() + durationMs
+    syncCurrentRoundPublic(room, runtime)
+    this.emitHandlers?.onRoomUpdated(this.getPublicRoom(roomId)!)
+
+    this.emitSpotifyPlayForCurrentRound(roomId)
+
+    clearRoundTimer(runtime)
+    runtime.roundTimer = setTimeout(() => {
+      this.emitHandlers?.onRoundClipEnded(roomId, { roundIndex })
+      onClipEnded()
+    }, durationMs)
+  }
+
+  resyncHostPlayback(roomId: string, playerId: string): void {
+    const room = this.rooms.get(roomId)
+    if (!room || room.hostPlayerId !== playerId) return
+    if (room.currentRound?.phase !== 'clip-playing') return
+    this.emitSpotifyPlayForCurrentRound(roomId)
+  }
+
+  private emitSpotifyPlayForCurrentRound(roomId: string): void {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime?.currentTrack?.spotifyUri || !room.currentRound) return
+
+    this.emitHandlers?.onSpotifyPlayTrack(
+      roomId,
+      room.hostPlayerId,
+      buildSpotifyPlayPayload(runtime.currentTrack, room.currentRound.index, room.settings),
+    )
   }
 
   private deleteRoom(room: GameRoom): void {

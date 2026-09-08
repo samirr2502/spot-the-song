@@ -11,8 +11,8 @@ npm install
 npm run dev
 ```
 
-- Client: http://localhost:5173
-- Server: http://localhost:3001 (`GET /health`)
+- Client: http://127.0.0.1:5173
+- Server: http://127.0.0.1:3001 (`GET /health`)
 
 Copy env examples:
 
@@ -44,15 +44,14 @@ spot-the-song/
 
 ## Current phase
 
-**Phase 8a — Spotify full playback (dev test)** ✓
+**Phase 8 — Spotify full playback** ✓
 
-- Host OAuth + Web Playback SDK test at `/dev/spotify`
-- Catalog/playback abstractions in shared
+- Host OAuth + Web Playback SDK in multiplayer
+- Clip phase (`clip-playing`) with server-authoritative timer
+- Dev test at `/dev/spotify`
 - See [`docs/SPOTIFY_ARCHITECTURE.md`](docs/SPOTIFY_ARCHITECTURE.md)
 
-**Next:** Verify `/dev/spotify` with Premium, then Phase 8b (multiplayer integration).
-
-Legacy multiplayer still uses preview `ClipPlayer` until 8b.
+**Next:** Manual QA with Premium account + multi-device lobby test.
 
 ## Spotify credentials
 
@@ -60,9 +59,9 @@ Server env (`server/.env`):
 
 - `SPOTIFY_CLIENT_ID`
 - `SPOTIFY_CLIENT_SECRET`
-- `SPOTIFY_REDIRECT_URI` — e.g. `http://localhost:3001/api/spotify/callback` (register in [Spotify Developer Dashboard](https://developer.spotify.com/dashboard))
+- `SPOTIFY_REDIRECT_URI` — `http://127.0.0.1:3001/api/spotify/callback` (register exactly this in the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard); **`localhost` is not allowed**)
 
-**Dev playback test:** open http://localhost:5173/dev/spotify after `npm run dev`. Requires a Spotify account with Premium for Web Playback SDK.
+**Dev playback test:** open http://127.0.0.1:5173/dev/spotify after `npm run dev`. Requires Premium for Web Playback SDK.
 
 Catalog import uses client-credentials; host playback uses OAuth (see `docs/SPOTIFY_ARCHITECTURE.md`).
 

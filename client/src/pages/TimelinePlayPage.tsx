@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { describeInsertPosition } from '@spot-the-song/shared'
-import { ClipPlayer } from '../components/ClipPlayer'
+import { RoundClipPlayer } from '../components/RoundClipPlayer'
 import { TimelineBoard } from '../components/TimelineBoard'
 import {
   SketchButton,
@@ -14,6 +14,7 @@ import {
 import { useRoom } from '../context/RoomContext'
 import { useCountdown } from '../hooks/useCountdown'
 import { useRoomStatusRedirect } from '../hooks/useRoomNavigation'
+import { formatFieldScoreLabel } from '../lib/revealFieldLabel'
 
 const FIELD_LABELS: Record<'title' | 'artist', string> = {
   title: 'Title',
@@ -52,7 +53,7 @@ export function TimelinePlayPage() {
   }, [room, round?.activePlayerId])
 
   const isActivePlayer = !!session && session.playerId === round?.activePlayerId
-  const isListening = room?.status === 'playing' && round?.phase === 'playing'
+  const isListening = room?.status === 'playing' && round?.phase === 'clip-playing'
   const isPlacing = room?.status === 'playing' && round?.phase === 'answering'
   const isRoundResults = room?.status === 'round-results'
   const showIntro = room?.status === 'playing' && round?.phase === 'round-intro'
@@ -81,7 +82,7 @@ export function TimelinePlayPage() {
   const [bonusSubmitted, setBonusSubmitted] = useState(false)
 
   useEffect(() => {
-    if (round?.phase === 'round-intro' || round?.phase === 'playing') {
+    if (round?.phase === 'round-intro' || round?.phase === 'clip-playing') {
       setSelectedIndex(null)
       setPlacementLocked(false)
       setBonusAnswers({})
@@ -153,7 +154,7 @@ export function TimelinePlayPage() {
           <h1 className="page-title page-title--sm">Reveal</h1>
         </header>
 
-        <SketchSongCard track={roundResults.track} />
+        <SketchSongCard track={roundResults.track} showSpotifyLink />
 
         {activePlayer ? (
           <SketchCard tiltSeed="timeline-active-result">
@@ -179,7 +180,11 @@ export function TimelinePlayPage() {
                 label={
                   entry.field === 'year'
                     ? 'Placement'
-                    : FIELD_LABELS[entry.field as 'title' | 'artist'] ?? entry.field
+                    : formatFieldScoreLabel(
+                        entry.field as 'title' | 'artist',
+                        roundResults.track,
+                        entry.correct,
+                      )
                 }
                 value={entry.points}
                 highlight={entry.correct}
@@ -244,16 +249,15 @@ export function TimelinePlayPage() {
         </SketchCard>
       ) : null}
 
-      <ClipPlayer
-        previewUrl={round?.roundTrack?.previewUrl}
+      <RoundClipPlayer
+        isHost={isHost}
+        phase={round?.phase}
         clipDurationSeconds={room.settings.clipDurationSeconds}
-        playing={
-          room.status === 'playing' &&
-          (round?.phase === 'round-intro' || round?.phase === 'playing' || round?.phase === 'answering')
-        }
+        endsAt={round?.phase === 'clip-playing' ? round.endsAt : null}
+        secondsRemaining={round?.phase === 'clip-playing' ? secondsRemaining : room.settings.clipDurationSeconds}
       />
 
-      {round?.phase === 'playing' ? (
+      {round?.phase === 'clip-playing' ? (
         <SketchTimer
           secondsRemaining={secondsRemaining}
           totalSeconds={listenTimerTotal}

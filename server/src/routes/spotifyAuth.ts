@@ -37,7 +37,7 @@ function clearSessionCookie(res: Response) {
 }
 
 export function registerSpotifyAuthRoutes(app: Express, clientOrigin = getClientOrigin()): void {
-  app.get('/api/spotify/login', (_req, res) => {
+  app.get('/api/spotify/login', (req, res) => {
     const config = getSpotifyConfig(clientOrigin)
     if (!config) {
       return res.status(503).json({
@@ -45,8 +45,13 @@ export function registerSpotifyAuthRoutes(app: Express, clientOrigin = getClient
       })
     }
 
+    const returnTo =
+      typeof req.query.returnTo === 'string' && req.query.returnTo.startsWith('/')
+        ? req.query.returnTo
+        : '/dev/spotify'
+
     const sessionId = createSpotifySessionId()
-    const state = createOAuthState(sessionId)
+    const state = createOAuthState(sessionId, returnTo)
     setSessionCookie(res, sessionId)
     res.redirect(buildSpotifyAuthorizeUrl(config, state))
   })
@@ -68,19 +73,21 @@ export function registerSpotifyAuthRoutes(app: Express, clientOrigin = getClient
       return res.redirect(`${clientOrigin}/dev/spotify?error=missing_code`)
     }
 
-    const sessionId = consumeOAuthState(state) ?? getSessionId(req)
+    const oauth = consumeOAuthState(state)
+    const sessionId = oauth?.sessionId ?? getSessionId(req)
+    const returnTo = oauth?.returnTo ?? '/dev/spotify'
     if (!sessionId) {
-      return res.redirect(`${clientOrigin}/dev/spotify?error=invalid_state`)
+      return res.redirect(`${clientOrigin}${returnTo}?error=invalid_state`)
     }
 
     try {
       const tokens = await exchangeSpotifyCode(config, code)
       saveSpotifySession(sessionId, tokens)
       setSessionCookie(res, sessionId)
-      res.redirect(`${clientOrigin}/dev/spotify?connected=1`)
+      res.redirect(`${clientOrigin}${returnTo}?connected=1`)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'auth_failed'
-      res.redirect(`${clientOrigin}/dev/spotify?error=${encodeURIComponent(message)}`)
+      res.redirect(`${clientOrigin}${returnTo}?error=${encodeURIComponent(message)}`)
     }
   })
 

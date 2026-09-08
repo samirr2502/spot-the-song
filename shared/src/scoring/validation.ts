@@ -19,8 +19,8 @@ export function validateGameSettings(settings: {
     return 'Choose between 1 and 20 rounds.'
   }
 
-  if (settings.clipDurationSeconds < 5 || settings.clipDurationSeconds > 60) {
-    return 'Clip duration must be between 5 and 60 seconds.'
+  if (settings.clipDurationSeconds !== 15 && settings.clipDurationSeconds !== 30) {
+    return 'Song clip must be 15 or 30 seconds.'
   }
 
   const guessTimer = settings.guessTimerSeconds ?? 30
@@ -40,8 +40,8 @@ export function validateSingAlongSettings(settings: {
     return 'Choose between 1 and 20 rounds.'
   }
 
-  if (settings.clipDurationSeconds < 5 || settings.clipDurationSeconds > 60) {
-    return 'Clip duration must be between 5 and 60 seconds.'
+  if (settings.clipDurationSeconds !== 15 && settings.clipDurationSeconds !== 30) {
+    return 'Song clip must be 15 or 30 seconds.'
   }
 
   const singTimer = settings.singTimerSeconds ?? 45
@@ -61,8 +61,8 @@ export function validateTimelineSettings(settings: {
     return 'Choose between 1 and 20 rounds.'
   }
 
-  if (settings.clipDurationSeconds < 5 || settings.clipDurationSeconds > 60) {
-    return 'Clip duration must be between 5 and 60 seconds.'
+  if (settings.clipDurationSeconds !== 15 && settings.clipDurationSeconds !== 30) {
+    return 'Song clip must be 15 or 30 seconds.'
   }
 
   const guessTimer = settings.guessTimerSeconds ?? 30

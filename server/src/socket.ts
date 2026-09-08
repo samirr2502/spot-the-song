@@ -1,5 +1,5 @@
 import type { Server as HttpServer } from 'node:http'
-import type { GameRoom } from '@spot-the-song/shared'
+import type { GameRoom, SpotifyPlayTrackPayload } from '@spot-the-song/shared'
 import { Server } from 'socket.io'
 import type {
   ClientToServerEvents,
@@ -58,6 +58,22 @@ async function attachPlayerToRoom(
   emitRoomState(io, room)
 }
 
+function emitToPlayer(
+  io: Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
+  roomId: string,
+  playerId: string,
+  event: 'server:spotify-play-track',
+  payload: SpotifyPlayTrackPayload,
+) {
+  void io.in(roomId).fetchSockets().then((sockets) => {
+    for (const target of sockets) {
+      if (target.data.playerId === playerId) {
+        target.emit(event, payload)
+      }
+    }
+  })
+}
+
 export function attachSocketHandlers(httpServer: HttpServer, clientOrigin: string) {
   const io = new Server<
     ClientToServerEvents,
@@ -77,6 +93,12 @@ export function attachSocketHandlers(httpServer: HttpServer, clientOrigin: strin
       io.to(roomId).emit('server:round-results', payload)
       const room = roomManager.getPublicRoom(roomId)
       if (room) emitRoomState(io, room)
+    },
+    onSpotifyPlayTrack: (roomId, hostPlayerId, payload) => {
+      emitToPlayer(io, roomId, hostPlayerId, 'server:spotify-play-track', payload)
+    },
+    onRoundClipEnded: (roomId, payload) => {
+      io.to(roomId).emit('server:round-clip-ended', payload)
     },
   })
 
@@ -145,6 +167,8 @@ export function attachSocketHandlers(httpServer: HttpServer, clientOrigin: strin
         }
 
         await attachPlayerToRoom(io, socket, result.room, result.player.id, result.sessionToken)
+
+        roomManager.resyncHostPlayback(result.room.id, result.player.id)
 
         const lastResults = roomManager.getLastRoundResults(result.room.id)
         if (lastResults && result.room.status === 'round-results') {
@@ -315,6 +339,35 @@ export function attachSocketHandlers(httpServer: HttpServer, clientOrigin: strin
       emitRoomState(io, result.room)
       io.to(roomId).emit('server:phase-changed', { status: result.room.status })
       callback({ ok: true })
+    })
+
+    socket.on('client:spotify-retry-playback', (callback) => {
+      const { playerId, roomId } = socket.data
+      if (!playerId || !roomId) {
+        callback({ ok: false, message: 'You are not in a room.' })
+        return
+      }
+
+      const result = roomManager.retrySpotifyPlayback(roomId, playerId)
+      callback(result.ok ? { ok: true } : { ok: false, message: result.message })
+    })
+
+    socket.on('client:spotify-player-ready', (_payload, callback) => {
+      callback?.({ ok: true })
+    })
+
+    socket.on('client:spotify-playback-started', (_payload, callback) => {
+      callback?.({ ok: true })
+    })
+
+    socket.on('client:spotify-playback-error', (payload, callback) => {
+      const { roomId } = socket.data
+      if (roomId) {
+        io.to(roomId).emit('server:error', {
+          message: payload.message || 'Spotify playback failed.',
+        })
+      }
+      callback?.({ ok: true })
     })
 
     socket.on('client:leave-room', (callback) => {

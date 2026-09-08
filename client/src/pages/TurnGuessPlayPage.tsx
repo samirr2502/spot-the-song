@@ -1,7 +1,7 @@
 import { type FormEvent, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { GuessFieldKey, VotePayload } from '@spot-the-song/shared'
-import { ClipPlayer } from '../components/ClipPlayer'
+import { RoundClipPlayer } from '../components/RoundClipPlayer'
 import {
   SketchButton,
   SketchCard,
@@ -12,6 +12,7 @@ import {
 import { useRoom } from '../context/RoomContext'
 import { useCountdown } from '../hooks/useCountdown'
 import { useRoomStatusRedirect } from '../hooks/useRoomNavigation'
+import { formatFieldScoreLabel } from '../lib/revealFieldLabel'
 
 const FIELD_LABELS: Record<GuessFieldKey, string> = {
   title: 'Title',
@@ -123,7 +124,7 @@ export function TurnGuessPlayPage() {
           <h1 className="page-title page-title--sm">Reveal</h1>
         </header>
 
-        <SketchSongCard track={roundResults.track} />
+        <SketchSongCard track={roundResults.track} showSpotifyLink />
 
         {activePlayer ? (
           <SketchCard tiltSeed="active-player-result">
@@ -158,7 +159,7 @@ export function TurnGuessPlayPage() {
             {activeResult.fieldScores.map((entry) => (
               <SketchScore
                 key={entry.field}
-                label={`${FIELD_LABELS[entry.field]}${entry.correct ? ' ✓' : ''}`}
+                label={formatFieldScoreLabel(entry.field, roundResults.track, entry.correct)}
                 value={entry.points}
                 highlight={entry.correct}
               />
@@ -214,13 +215,12 @@ export function TurnGuessPlayPage() {
         </SketchCard>
       ) : null}
 
-      <ClipPlayer
-        previewUrl={round?.roundTrack?.previewUrl}
+      <RoundClipPlayer
+        isHost={isHost}
+        phase={round?.phase}
         clipDurationSeconds={room.settings.clipDurationSeconds}
-        playing={
-          room.status === 'playing' &&
-          (round?.phase === 'round-intro' || round?.phase === 'playing' || round?.phase === 'voting')
-        }
+        endsAt={round?.phase === 'clip-playing' ? round.endsAt : null}
+        secondsRemaining={round?.phase === 'clip-playing' ? secondsRemaining : room.settings.clipDurationSeconds}
       />
 
       {round?.phase === 'playing' ? (

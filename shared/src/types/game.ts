@@ -34,11 +34,14 @@ export type RoomStatus =
 
 export type RoundPhase =
   | 'round-intro'
+  | 'clip-playing'
   | 'playing'
   | 'answering'
   | 'voting'
   | 'rating'
   | 'reveal'
+
+export type MusicSource = 'spotify' | 'mock'
 
 export type ChallengeTrack = {
   title: string
@@ -71,6 +74,7 @@ export type GameRoom = {
   trackPoolSize?: number
   playlistName?: string
   playableTrackCount?: number
+  musicSource?: MusicSource
   currentRound: CurrentRound | null
   scores: Record<string, number>
   readyPlayerIds?: string[]
@@ -88,7 +92,7 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   playMode: 'all-in',
   guessFields: DEFAULT_GUESS_FIELDS,
   roundCount: 5,
-  clipDurationSeconds: 15,
+  clipDurationSeconds: 30,
   guessTimerSeconds: 30,
   singTimerSeconds: 45,
 }

@@ -8,7 +8,7 @@ export type SpotifyTokenSet = {
 }
 
 const sessions = new Map<string, SpotifyTokenSet>()
-const oauthStates = new Map<string, { sessionId: string; createdAt: number }>()
+const oauthStates = new Map<string, { sessionId: string; returnTo: string; createdAt: number }>()
 
 const STATE_TTL_MS = 10 * 60 * 1000
 
@@ -16,18 +16,19 @@ export function createSpotifySessionId(): string {
   return `spotify_${crypto.randomUUID()}`
 }
 
-export function createOAuthState(sessionId: string): string {
+export function createOAuthState(sessionId: string, returnTo = '/dev/spotify'): string {
   const state = crypto.randomUUID()
-  oauthStates.set(state, { sessionId, createdAt: Date.now() })
+  const safeReturnTo = returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/dev/spotify'
+  oauthStates.set(state, { sessionId, returnTo: safeReturnTo, createdAt: Date.now() })
   return state
 }
 
-export function consumeOAuthState(state: string): string | null {
+export function consumeOAuthState(state: string): { sessionId: string; returnTo: string } | null {
   const entry = oauthStates.get(state)
   oauthStates.delete(state)
   if (!entry) return null
   if (Date.now() - entry.createdAt > STATE_TTL_MS) return null
-  return entry.sessionId
+  return { sessionId: entry.sessionId, returnTo: entry.returnTo }
 }
 
 export function saveSpotifySession(sessionId: string, tokens: SpotifyTokenSet): void {

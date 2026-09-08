@@ -18,9 +18,12 @@ type SocketContextValue = {
 
 const SocketContext = createContext<SocketContextValue | null>(null)
 
+const DEV_SERVER_URL = 'http://127.0.0.1:3001'
+
 const socketOptions = {
-  autoConnect: false,
-  transports: ['websocket', 'polling'] as ('websocket' | 'polling')[],
+  autoConnect: true,
+  transports: ['polling', 'websocket'] as ('websocket' | 'polling')[],
+  reconnection: true,
 }
 
 let sharedSocket: AppSocket | null = null
@@ -34,13 +37,13 @@ function getSharedSocket(): AppSocket {
     return sharedSocket
   }
 
-  // Dev: same-origin via Vite /socket.io proxy (works on any local port)
+  // Dev: connect directly to Express — more reliable than Vite ws proxy
   if (import.meta.env.DEV) {
-    sharedSocket = io(socketOptions)
+    sharedSocket = io(DEV_SERVER_URL, socketOptions)
     return sharedSocket
   }
 
-  sharedSocket = io('http://localhost:3001', socketOptions)
+  sharedSocket = io(socketOptions)
   return sharedSocket
 }
 
@@ -64,11 +67,11 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     socket.on('connect_error', onConnectError)
     socket.on('server:connected', onServerConnected)
 
+    // StrictMode can connect before listeners attach — always sync current state
     if (socket.connected) {
-      setConnectionState('connected')
+      onConnect()
     } else {
       setConnectionState('connecting')
-      socket.connect()
     }
 
     return () => {

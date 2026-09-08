@@ -48,7 +48,9 @@ sequenceDiagram
 
 - `SPOTIFY_CLIENT_ID`
 - `SPOTIFY_CLIENT_SECRET`
-- `SPOTIFY_REDIRECT_URI` (default `http://localhost:3001/api/spotify/callback`)
+- `SPOTIFY_REDIRECT_URI` (default `http://127.0.0.1:3001/api/spotify/callback`)
+
+Spotify **does not allow `localhost`** in redirect URIs. Use the loopback IP `127.0.0.1` and browse the app at `http://127.0.0.1:5173`.
 
 Register the redirect URI in the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
 
@@ -146,6 +148,8 @@ Defined in `shared/src/socket/spotifyEvents.ts`:
 | H→S | `client:spotify-playback-error` | `{ message, code? }` |
 
 Not wired into multiplayer until Phase 8 integration (after `/dev/spotify` test passes).
+
+**Status:** Wired in Phase 8b — host play command + clip-ended in live rooms.
 
 ---
 
