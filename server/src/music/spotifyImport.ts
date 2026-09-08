@@ -7,6 +7,7 @@ export type ParsedTrack = {
   album: string
   previewUrl: string | null
   releaseYear: number | null
+  artworkUrl?: string | null
 }
 
 export type SourceData = {
@@ -116,6 +117,13 @@ function formatArtists(artists: unknown): string {
 }
 
 function parseReleaseYear(value: unknown): number | null {
+  if (value && typeof value === 'object') {
+    const isoString = (value as { isoString?: string }).isoString
+    if (isoString) {
+      return parseReleaseYear(isoString)
+    }
+  }
+
   if (typeof value !== 'string' || !value.trim()) return null
 
   const year = Number.parseInt(value.slice(0, 4), 10)
@@ -170,7 +178,9 @@ function parseTrackListItem(
     'Unknown Track'
 
   const artist =
-    (typeof track.subtitle === 'string' && track.subtitle) || formatArtists(track.artists)
+    (typeof track.subtitle === 'string' && track.subtitle) ||
+    formatArtists(track.artists) ||
+    formatArtists(track.authors)
 
   const audioPreview = track.audioPreview as { url?: string } | undefined
   const previewUrl =
@@ -179,7 +189,7 @@ function parseTrackListItem(
   return {
     trackId,
     title,
-    artist,
+    artist: artist || 'Unknown Artist',
     album: getAlbumName(track, sourceName),
     previewUrl,
     releaseYear: getReleaseYearFromRecord(track, releaseYearFallback),
@@ -199,7 +209,9 @@ function parseTrackEntity(entity: Record<string, unknown>, sourceName: string): 
     'Unknown Track'
 
   const artist =
-    (typeof entity.subtitle === 'string' && entity.subtitle) || formatArtists(entity.artists)
+    (typeof entity.subtitle === 'string' && entity.subtitle) ||
+    formatArtists(entity.artists) ||
+    formatArtists(entity.authors)
 
   const audioPreview = entity.audioPreview as { url?: string } | undefined
   const previewUrl = audioPreview?.url ?? null
@@ -207,7 +219,7 @@ function parseTrackEntity(entity: Record<string, unknown>, sourceName: string): 
   return {
     trackId,
     title,
-    artist,
+    artist: artist || 'Unknown Artist',
     album: getAlbumName(entity, sourceName),
     previewUrl,
     releaseYear: getReleaseYearFromRecord(entity),
@@ -314,9 +326,12 @@ async function fetchPlaylistFromApi(token: string, playlistId: string): Promise<
   }
 
   const tracks = items
-    .map((item) =>
-      item.track ? parseTrackListItem(item.track, playlist.name) : null,
-    )
+    .map((item) => {
+      if (!item.track || typeof item.track !== 'object') return null
+      const track = item.track as Record<string, unknown>
+      if (track.type === 'episode' || track.is_local === true) return null
+      return parseTrackListItem(track, playlist.name)
+    })
     .filter((track): track is ParsedTrack => Boolean(track))
 
   return {
@@ -390,17 +405,18 @@ async function fetchSource(
 async function fetchTrackEmbedDetails(
   trackId: string,
   sourceName: string,
-): Promise<{ previewUrl: string | null; releaseYear: number | null }> {
+): Promise<{ previewUrl: string | null; releaseYear: number | null; artworkUrl: string | null }> {
   const data = await fetchEmbedJson(`https://open.spotify.com/embed/track/${trackId}`)
-  if (!data) return { previewUrl: null, releaseYear: null }
+  if (!data) return { previewUrl: null, releaseYear: null, artworkUrl: null }
 
   const entity = extractEntity(data)
-  if (!entity) return { previewUrl: null, releaseYear: null }
+  if (!entity) return { previewUrl: null, releaseYear: null, artworkUrl: null }
 
   const parsed = parseTrackEntity(entity, sourceName)
   return {
     previewUrl: parsed?.previewUrl ?? null,
     releaseYear: parsed?.releaseYear ?? getReleaseYearFromRecord(entity),
+    artworkUrl: getCoverUrl(entity),
   }
 }
 
@@ -446,14 +462,16 @@ async function itunesPreview(
 
 async function resolveTrackDetails(
   track: ParsedTrack,
-): Promise<{ previewUrl: string | null; releaseYear: number }> {
+): Promise<{ previewUrl: string | null; releaseYear: number; artworkUrl: string | null }> {
   let previewUrl = track.previewUrl
   let releaseYear = track.releaseYear
+  let artworkUrl = track.artworkUrl ?? null
 
-  if (!previewUrl || !releaseYear) {
+  if (!previewUrl || !releaseYear || !artworkUrl) {
     const embedDetails = await fetchTrackEmbedDetails(track.trackId, track.album)
     previewUrl ??= embedDetails.previewUrl
     releaseYear ??= embedDetails.releaseYear
+    artworkUrl ??= embedDetails.artworkUrl
   }
 
   if (!previewUrl || !releaseYear) {
@@ -471,6 +489,7 @@ async function resolveTrackDetails(
   return {
     previewUrl,
     releaseYear: releaseYear ?? 2000,
+    artworkUrl,
   }
 }
 
@@ -510,6 +529,7 @@ export async function importSpotifyUrl(url: string): Promise<SourceData & { reso
       ...track,
       previewUrl: details.previewUrl,
       releaseYear: details.releaseYear,
+      artworkUrl: details.artworkUrl,
     }
   })
 

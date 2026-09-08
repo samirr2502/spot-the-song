@@ -18,10 +18,6 @@ export function emitWithAck<T extends ActionResult>(
       reject(new Error('Server took too long to respond. Check your connection and try again.'))
     }, timeoutMs)
 
-    const emit = payload === undefined
-      ? (socket.emit as (event: string, callback: (result: T) => void) => void)
-      : (socket.emit as (event: string, payload: unknown, callback: (result: T) => void) => void)
-
     const onResult = (result: T) => {
       if (settled) return
       settled = true
@@ -29,14 +25,11 @@ export function emitWithAck<T extends ActionResult>(
       resolve(result)
     }
 
+    // Must call socket.emit directly — extracting emit loses `this` and crashes in socket.io.
     if (payload === undefined) {
-      ;(emit as (event: string, callback: (result: T) => void) => void)(event, onResult)
+      socket.emit(event, onResult)
     } else {
-      ;(emit as (event: string, payload: unknown, callback: (result: T) => void) => void)(
-        event,
-        payload,
-        onResult,
-      )
+      socket.emit(event, payload, onResult)
     }
   })
 }

@@ -19,7 +19,7 @@ export class SpotifyProvider implements MusicProvider {
         artist: entry.artist,
         album: entry.album,
         year: entry.releaseYear ?? 2000,
-        artworkUrl: source.imageUrl ?? undefined,
+        artworkUrl: entry.artworkUrl ?? source.imageUrl ?? undefined,
         previewUrl: entry.previewUrl ?? undefined,
       }
     })

@@ -19,22 +19,29 @@ type SocketContextValue = {
 const SocketContext = createContext<SocketContextValue | null>(null)
 
 const socketOptions = {
-  autoConnect: true,
+  autoConnect: false,
   transports: ['websocket', 'polling'] as ('websocket' | 'polling')[],
 }
 
-function createSocket() {
+let sharedSocket: AppSocket | null = null
+
+function getSharedSocket(): AppSocket {
+  if (sharedSocket) return sharedSocket
+
   const explicitUrl = import.meta.env.VITE_SERVER_URL
   if (explicitUrl) {
-    return io(explicitUrl, socketOptions)
+    sharedSocket = io(explicitUrl, socketOptions)
+    return sharedSocket
   }
 
   // Dev: same-origin via Vite /socket.io proxy (works on any local port)
   if (import.meta.env.DEV) {
-    return io(socketOptions)
+    sharedSocket = io(socketOptions)
+    return sharedSocket
   }
 
-  return io('http://localhost:3001', socketOptions)
+  sharedSocket = io('http://localhost:3001', socketOptions)
+  return sharedSocket
 }
 
 export function SocketProvider({ children }: { children: ReactNode }) {
@@ -42,7 +49,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   const [serverTimeOffset, setServerTimeOffset] = useState<number | null>(null)
   const [healthOk, setHealthOk] = useState<boolean | null>(null)
 
-  const socket = useMemo(() => createSocket(), [])
+  const socket = useMemo(() => getSharedSocket(), [])
 
   useEffect(() => {
     const onConnect = () => setConnectionState('connected')
@@ -59,6 +66,9 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
     if (socket.connected) {
       setConnectionState('connected')
+    } else {
+      setConnectionState('connecting')
+      socket.connect()
     }
 
     return () => {
@@ -66,7 +76,6 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       socket.off('disconnect', onDisconnect)
       socket.off('connect_error', onConnectError)
       socket.off('server:connected', onServerConnected)
-      socket.disconnect()
     }
   }, [socket])
 
