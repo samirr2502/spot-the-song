@@ -18,21 +18,31 @@ type SocketContextValue = {
 
 const SocketContext = createContext<SocketContextValue | null>(null)
 
-const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
+const socketOptions = {
+  autoConnect: true,
+  transports: ['websocket', 'polling'] as ('websocket' | 'polling')[],
+}
+
+function createSocket() {
+  const explicitUrl = import.meta.env.VITE_SERVER_URL
+  if (explicitUrl) {
+    return io(explicitUrl, socketOptions)
+  }
+
+  // Dev: same-origin via Vite /socket.io proxy (works on any local port)
+  if (import.meta.env.DEV) {
+    return io(socketOptions)
+  }
+
+  return io('http://localhost:3001', socketOptions)
+}
 
 export function SocketProvider({ children }: { children: ReactNode }) {
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting')
   const [serverTimeOffset, setServerTimeOffset] = useState<number | null>(null)
   const [healthOk, setHealthOk] = useState<boolean | null>(null)
 
-  const socket = useMemo(
-    () =>
-      io(serverUrl, {
-        autoConnect: true,
-        transports: ['websocket', 'polling'],
-      }),
-    [],
-  )
+  const socket = useMemo(() => createSocket(), [])
 
   useEffect(() => {
     const onConnect = () => setConnectionState('connected')

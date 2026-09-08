@@ -12,6 +12,7 @@ import { LandingPage } from './pages/LandingPage'
 import { LobbyPage } from './pages/LobbyPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { SingAlongSetupPage } from './pages/SingAlongSetupPage'
+import { TimelineSetupPage } from './pages/TimelineSetupPage'
 import { TurnGuessSetupPage } from './pages/TurnGuessSetupPage'
 import { TurnsModePage } from './pages/TurnsModePage'
 import { RoomHowToPlayPage } from './pages/RoomHowToPlayPage'
@@ -75,6 +76,14 @@ export function App() {
           element={
             <RequireName>
               <SingAlongSetupPage />
+            </RequireName>
+          }
+        />
+        <Route
+          path="/create/turns/timeline"
+          element={
+            <RequireName>
+              <TimelineSetupPage />
             </RequireName>
           }
         />

@@ -8,6 +8,8 @@ import {
   type ReactNode,
 } from 'react'
 import type {
+  CreateRoomResult,
+  JoinRoomResult,
   GameRoom,
   GameSettings,
   RoomSessionPayload,
@@ -15,6 +17,8 @@ import type {
   SubmitAnswersPayload,
   VotePayload,
   RatingPayload,
+  PlaceCardPayload,
+  TimelineBonusPayload,
 } from '@spot-the-song/shared'
 import {
   clearRoomSession,
@@ -22,7 +26,11 @@ import {
   getRoomSession,
   saveRoomSession,
 } from '../lib/session'
+import { emitWithAck } from '../lib/socketAck'
 import { useSocketContext } from './SocketContext'
+
+const RECONNECT_ACK_TIMEOUT_MS = 12_000
+const CREATE_ROOM_ACK_TIMEOUT_MS = 60_000
 
 type RoomContextValue = {
   room: GameRoom | null
@@ -39,6 +47,8 @@ type RoomContextValue = {
   submitAnswers: (answers: SubmitAnswersPayload) => Promise<boolean>
   submitVotes: (votes: VotePayload) => Promise<boolean>
   submitRating: (payload: RatingPayload) => Promise<boolean>
+  placeCard: (payload: PlaceCardPayload) => Promise<boolean>
+  submitTimelineBonus: (payload: TimelineBonusPayload) => Promise<boolean>
   continueAfterResults: () => Promise<boolean>
   playAgain: () => Promise<boolean>
   clearError: () => void
@@ -85,6 +95,11 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   }, [socket])
 
   useEffect(() => {
+    if (connectionState === 'connected') return
+    setBusy(false)
+  }, [connectionState])
+
+  useEffect(() => {
     if (!socket || connectionState !== 'connected' || reconnectAttempted) return
 
     const stored = getRoomSession()
@@ -93,20 +108,44 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    let cancelled = false
     setBusy(true)
-    socket.emit('client:reconnect-room', { sessionToken: stored.sessionToken }, (result) => {
-      setReconnectAttempted(true)
-      setBusy(false)
 
-      if (result.ok) {
-        setSession(stored)
-        return
-      }
+    emitWithAck<{ ok: true } | { ok: false; message: string }>(
+      socket,
+      'client:reconnect-room',
+      { sessionToken: stored.sessionToken },
+      RECONNECT_ACK_TIMEOUT_MS,
+    )
+      .then((result) => {
+        if (cancelled) return
 
-      clearRoomSession()
-      setSession(null)
-      setRoom(null)
-    })
+        setReconnectAttempted(true)
+        setBusy(false)
+
+        if (result.ok) {
+          setSession(stored)
+          return
+        }
+
+        clearRoomSession()
+        setSession(null)
+        setRoom(null)
+      })
+      .catch((err) => {
+        if (cancelled) return
+
+        setReconnectAttempted(true)
+        setBusy(false)
+        clearRoomSession()
+        setSession(null)
+        setRoom(null)
+        setError(err instanceof Error ? err.message : 'Could not restore your session.')
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [socket, connectionState, reconnectAttempted])
 
   const persistSession = useCallback((payload: RoomSessionPayload) => {
@@ -116,7 +155,15 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
   const createRoom = useCallback(
     async (settings: GameSettings, spotifyUrl?: string): Promise<{ code: string } | null> => {
-      if (!socket) return null
+      if (!socket) {
+        setError('Still connecting to the server…')
+        return null
+      }
+
+      if (connectionState !== 'connected') {
+        setError('Not connected to the server yet. Wait for “Live” in the corner, then try again.')
+        return null
+      }
 
       const name = getPlayerName()
       if (!name) {
@@ -127,60 +174,78 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       setBusy(true)
       setError(null)
 
-      return new Promise((resolve) => {
-        socket.emit(
+      try {
+        const result = await emitWithAck<CreateRoomResult>(
+          socket,
           'client:create-room',
           { playerName: name, settings, spotifyUrl: spotifyUrl?.trim() || undefined },
-          (result) => {
-          setBusy(false)
+          CREATE_ROOM_ACK_TIMEOUT_MS,
+        )
 
-          if (!result.ok) {
-            setError(result.message)
-            resolve(null)
-            return
-          }
+        if (!result.ok) {
+          setError(result.message)
+          return null
+        }
 
-          const payload: RoomSessionPayload = {
-            playerId: result.playerId,
-            sessionToken: result.sessionToken,
-            roomCode: result.code,
-          }
-          persistSession(payload)
-          resolve({ code: result.code })
-        })
-      })
+        const payload: RoomSessionPayload = {
+          playerId: result.playerId,
+          sessionToken: result.sessionToken,
+          roomCode: result.code,
+        }
+        persistSession(payload)
+        return { code: result.code }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not create the room.')
+        return null
+      } finally {
+        setBusy(false)
+      }
     },
-    [socket, persistSession],
+    [socket, connectionState, persistSession],
   )
 
   const joinRoom = useCallback(
     async (code: string, playerName: string): Promise<{ code: string } | null> => {
-      if (!socket) return null
+      if (!socket) {
+        setError('Still connecting to the server…')
+        return null
+      }
+
+      if (connectionState !== 'connected') {
+        setError('Not connected to the server yet. Wait for “Live” in the corner, then try again.')
+        return null
+      }
 
       setBusy(true)
       setError(null)
 
-      return new Promise((resolve) => {
-        socket.emit('client:join-room', { code, playerName }, (result) => {
-          setBusy(false)
+      try {
+        const result = await emitWithAck<JoinRoomResult>(
+          socket,
+          'client:join-room',
+          { code, playerName },
+        )
 
-          if (!result.ok) {
-            setError(result.message)
-            resolve(null)
-            return
-          }
+        if (!result.ok) {
+          setError(result.message)
+          return null
+        }
 
-          const payload: RoomSessionPayload = {
-            playerId: result.playerId,
-            sessionToken: result.sessionToken,
-            roomCode: result.code,
-          }
-          persistSession(payload)
-          resolve({ code: result.code })
-        })
-      })
+        const payload: RoomSessionPayload = {
+          playerId: result.playerId,
+          sessionToken: result.sessionToken,
+          roomCode: result.code,
+        }
+        persistSession(payload)
+        return { code: result.code }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not join the room.')
+        return null
+      } finally {
+        setBusy(false)
+      }
     },
-    [socket, persistSession],
+    [socket, connectionState, persistSession],
   )
 
   const leaveRoom = useCallback(async () => {
@@ -314,6 +379,54 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     [socket],
   )
 
+  const placeCard = useCallback(
+    async (payload: PlaceCardPayload): Promise<boolean> => {
+      if (!socket) return false
+
+      setBusy(true)
+      setError(null)
+
+      return new Promise((resolve) => {
+        socket.emit('client:place-card', payload, (result) => {
+          setBusy(false)
+
+          if (!result.ok) {
+            setError(result.message)
+            resolve(false)
+            return
+          }
+
+          resolve(true)
+        })
+      })
+    },
+    [socket],
+  )
+
+  const submitTimelineBonus = useCallback(
+    async (payload: TimelineBonusPayload): Promise<boolean> => {
+      if (!socket) return false
+
+      setBusy(true)
+      setError(null)
+
+      return new Promise((resolve) => {
+        socket.emit('client:submit-timeline-bonus', payload, (result) => {
+          setBusy(false)
+
+          if (!result.ok) {
+            setError(result.message)
+            resolve(false)
+            return
+          }
+
+          resolve(true)
+        })
+      })
+    },
+    [socket],
+  )
+
   const continueAfterResults = useCallback(async (): Promise<boolean> => {
     if (!socket) return false
 
@@ -379,6 +492,8 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       submitAnswers,
       submitVotes,
       submitRating,
+      placeCard,
+      submitTimelineBonus,
       continueAfterResults,
       playAgain,
       clearError: () => setError(null),
@@ -398,6 +513,8 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       submitAnswers,
       submitVotes,
       submitRating,
+      placeCard,
+      submitTimelineBonus,
       continueAfterResults,
       playAgain,
     ],

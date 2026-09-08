@@ -2,11 +2,13 @@ import { type FormEvent, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { SketchButton, SketchCard, SketchInput } from '../components/sketch'
 import { useRoom } from '../context/RoomContext'
+import { useSocketContext } from '../context/SocketContext'
 import { getPlayerName } from '../lib/session'
 
 export function JoinPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const { connectionState } = useSocketContext()
   const { joinRoom, error, busy, clearError } = useRoom()
   const [code, setCode] = useState(() => searchParams.get('code')?.toUpperCase() ?? '')
 
@@ -45,7 +47,11 @@ export function JoinPage() {
 
           {error ? <p className="form-error">{error}</p> : null}
 
-          <SketchButton type="submit" fullWidth disabled={busy || code.length !== 6}>
+          {connectionState !== 'connected' ? (
+            <p className="form-error">Wait for Socket: Live in the corner before joining.</p>
+          ) : null}
+
+          <SketchButton type="submit" fullWidth disabled={busy || code.length !== 6 || connectionState !== 'connected'}>
             {busy ? 'Joining…' : 'Join lobby'}
           </SketchButton>
         </form>

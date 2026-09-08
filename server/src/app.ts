@@ -1,13 +1,14 @@
 import express from 'express'
 import cors from 'cors'
+import { corsOriginCallback, getClientOrigin } from './clientOrigin.js'
 import { registerMusicRoutes } from './routes/music.js'
 
-export function createApp() {
+export function createApp(clientOrigin = getClientOrigin()) {
   const app = express()
 
   app.use(
     cors({
-      origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+      origin: corsOriginCallback(clientOrigin),
     }),
   )
 

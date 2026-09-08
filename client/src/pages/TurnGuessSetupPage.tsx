@@ -9,10 +9,12 @@ import {
 } from '@spot-the-song/shared'
 import { SketchButton, SketchCard, SketchCheckbox, SketchDivider, SketchInput } from '../components/sketch'
 import { useRoom } from '../context/RoomContext'
+import { useSocketContext } from '../context/SocketContext'
 import { previewMusicLink, type MusicPreviewResult } from '../lib/musicApi'
 
 export function TurnGuessSetupPage() {
   const navigate = useNavigate()
+  const { connectionState } = useSocketContext()
   const { createRoom, error, busy, clearError } = useRoom()
 
   const [spotifyUrl, setSpotifyUrl] = useState('')
@@ -187,7 +189,11 @@ export function TurnGuessSetupPage() {
 
           {displayError ? <p className="form-error">{displayError}</p> : null}
 
-          <SketchButton type="submit" fullWidth disabled={busy || previewLoading}>
+          {connectionState !== 'connected' ? (
+            <p className="form-error">Wait for Socket: Live in the corner before creating a lobby.</p>
+          ) : null}
+
+          <SketchButton type="submit" fullWidth disabled={busy || previewLoading || connectionState !== 'connected'}>
             {busy ? 'Loading music & creating…' : 'Create lobby'}
           </SketchButton>
         </form>

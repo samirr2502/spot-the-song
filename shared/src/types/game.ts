@@ -1,5 +1,6 @@
 import type { Player } from './player.js'
 import type { RoundTrackPublic } from './round.js'
+import type { TimelineCardPublic } from './timeline.js'
 import type { Track } from './track.js'
 
 export type PlayMode = 'all-in' | 'turns'
@@ -73,6 +74,7 @@ export type GameRoom = {
   currentRound: CurrentRound | null
   scores: Record<string, number>
   readyPlayerIds?: string[]
+  timelines?: Record<string, TimelineCardPublic[]>
 }
 
 export const DEFAULT_GUESS_FIELDS: GuessFields = {

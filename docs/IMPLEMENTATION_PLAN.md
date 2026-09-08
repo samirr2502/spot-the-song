@@ -193,13 +193,13 @@ Complete Sing Along game loop.
 
 ### Tasks
 
-- [ ] Starter song per player on join/start
-- [ ] Player-specific timeline state on server
-- [ ] Hidden incoming card + drag/drop placement (mobile touch)
-- [ ] Before / between / after drop zones
-- [ ] Year reveal + server validation
-- [ ] Optional title/artist bonus guesses
-- [ ] Turn rotation + results
+- [x] Starter song per player on join/start
+- [x] Player-specific timeline state on server
+- [x] Hidden incoming card + drag/drop placement (mobile touch)
+- [x] Before / between / after drop zones
+- [x] Year reveal + server validation
+- [x] Optional title/artist bonus guesses
+- [x] Turn rotation + results
 
 ### Deliverable
 
@@ -207,7 +207,10 @@ Complete playable Timeline mode.
 
 ### Phase 6 completion notes
 
-_(pending)_
+- Setup at `/create/turns/timeline`; starter cards dealt when the first round begins.
+- Server: `timelineGame.ts`, per-player timelines, placement validation, bonus scoring.
+- Client: `TimelineBoard` with tap-to-place slots; `TimelinePlayPage` for listen → place → reveal flow.
+- Sockets: `client:place-card`, `client:submit-timeline-bonus`.
 
 ---
 

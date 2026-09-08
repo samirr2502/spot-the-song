@@ -1,6 +1,6 @@
 import type { RoundResultsPayload, SubmitAnswersPayload } from '@spot-the-song/shared'
 import type { Track } from '@spot-the-song/shared'
-import type { VotePayload } from '@spot-the-song/shared'
+import type { TimelineBonusPayload, TimelineCardStored, VotePayload } from '@spot-the-song/shared'
 
 export type StoredAnswer = {
   answers: SubmitAnswersPayload
@@ -14,6 +14,10 @@ export type RoomRuntime = {
   roundAnswers: Map<string, StoredAnswer>
   roundVotes: Map<string, VotePayload>
   roundRatings: Map<string, number>
+  playerTimelines: Map<string, TimelineCardStored[]>
+  timelinePlacementIndex: number | null
+  timelineBonusAnswers: TimelineBonusPayload | null
+  timelinePlacementLocked: boolean
   turnRotationIndex: number
   roundStartedAt: number | null
   howToPlayAcks: Set<string>
@@ -31,6 +35,10 @@ export function createRoomRuntime(trackPool: Track[]): RoomRuntime {
     roundAnswers: new Map(),
     roundVotes: new Map(),
     roundRatings: new Map(),
+    playerTimelines: new Map(),
+    timelinePlacementIndex: null,
+    timelineBonusAnswers: null,
+    timelinePlacementLocked: false,
     turnRotationIndex: 0,
     roundStartedAt: null,
     howToPlayAcks: new Set(),

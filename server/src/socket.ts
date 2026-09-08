@@ -7,7 +7,30 @@ import type {
   ServerToClientEvents,
   SocketData,
 } from '@spot-the-song/shared'
+import { corsOriginCallback } from './clientOrigin.js'
 import { roomManager } from './rooms/RoomManager.js'
+
+function safeCallback<T>(
+  callback: ((result: T) => void) | undefined,
+  result: T,
+) {
+  try {
+    callback?.(result)
+  } catch (error) {
+    console.error('Socket callback failed:', error)
+  }
+}
+
+function handleSocketError(
+  callback: ((result: { ok: false; message: string }) => void) | undefined,
+  error: unknown,
+) {
+  console.error('Socket handler failed:', error)
+  safeCallback(callback, {
+    ok: false,
+    message: error instanceof Error ? error.message : 'Something went wrong on the server.',
+  })
+}
 
 function emitRoomState(
   io: Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
@@ -43,7 +66,7 @@ export function attachSocketHandlers(httpServer: HttpServer, clientOrigin: strin
     SocketData
   >(httpServer, {
     cors: {
-      origin: clientOrigin,
+      origin: corsOriginCallback(clientOrigin),
       methods: ['GET', 'POST'],
     },
   })
@@ -65,61 +88,73 @@ export function attachSocketHandlers(httpServer: HttpServer, clientOrigin: strin
     })
 
     socket.on('client:create-room', async (payload, callback) => {
-      const result = await roomManager.createRoom(
-        payload.playerName,
-        payload.settings,
-        payload.spotifyUrl,
-      )
+      try {
+        const result = await roomManager.createRoom(
+          payload.playerName,
+          payload.settings,
+          payload.spotifyUrl,
+        )
 
-      if (!result.ok) {
-        callback(result)
-        return
+        if (!result.ok) {
+          safeCallback(callback, result)
+          return
+        }
+
+        await attachPlayerToRoom(io, socket, result.room, result.player.id, result.sessionToken)
+        callback({
+          ok: true,
+          code: result.room.code,
+          playerId: result.player.id,
+          sessionToken: result.sessionToken,
+        })
+      } catch (error) {
+        handleSocketError(callback, error)
       }
-
-      await attachPlayerToRoom(io, socket, result.room, result.player.id, result.sessionToken)
-      callback({
-        ok: true,
-        code: result.room.code,
-        playerId: result.player.id,
-        sessionToken: result.sessionToken,
-      })
     })
 
     socket.on('client:join-room', async (payload, callback) => {
-      const result = roomManager.joinRoom(payload.code, payload.playerName)
+      try {
+        const result = roomManager.joinRoom(payload.code, payload.playerName)
 
-      if (!result.ok) {
-        callback(result)
-        return
+        if (!result.ok) {
+          safeCallback(callback, result)
+          return
+        }
+
+        await attachPlayerToRoom(io, socket, result.room, result.player.id, result.sessionToken)
+        io.to(result.room.id).emit('server:player-joined', { playerId: result.player.id })
+
+        callback({
+          ok: true,
+          code: result.room.code,
+          playerId: result.player.id,
+          sessionToken: result.sessionToken,
+        })
+      } catch (error) {
+        handleSocketError(callback, error)
       }
-
-      await attachPlayerToRoom(io, socket, result.room, result.player.id, result.sessionToken)
-      io.to(result.room.id).emit('server:player-joined', { playerId: result.player.id })
-
-      callback({
-        ok: true,
-        code: result.room.code,
-        playerId: result.player.id,
-        sessionToken: result.sessionToken,
-      })
     })
 
     socket.on('client:reconnect-room', async (payload, callback) => {
-      const result = roomManager.reconnect(payload.sessionToken)
+      try {
+        const result = roomManager.reconnect(payload.sessionToken)
 
-      if (!result.ok) {
-        callback({ ok: false, message: result.message })
-        return
+        if (!result.ok) {
+          safeCallback(callback, { ok: false, message: result.message })
+          return
+        }
+
+        await attachPlayerToRoom(io, socket, result.room, result.player.id, result.sessionToken)
+
+        const lastResults = roomManager.getLastRoundResults(result.room.id)
+        if (lastResults && result.room.status === 'round-results') {
+          socket.emit('server:round-results', lastResults)
+        }
+
+        callback({ ok: true })
+      } catch (error) {
+        handleSocketError(callback, error)
       }
-
-      await attachPlayerToRoom(io, socket, result.room, result.player.id, result.sessionToken)
-
-      const lastResults = roomManager.getLastRoundResults(result.room.id)
-      if (lastResults && result.room.status === 'round-results') {
-        socket.emit('server:round-results', lastResults)
-      }
-
-      callback({ ok: true })
     })
 
     socket.on('client:start-game', (callback) => {
@@ -203,6 +238,40 @@ export function attachSocketHandlers(httpServer: HttpServer, clientOrigin: strin
       }
 
       const result = roomManager.submitRating(roomId, playerId, payload)
+      if (!result.ok) {
+        callback(result)
+        return
+      }
+
+      emitRoomState(io, result.room)
+      callback({ ok: true })
+    })
+
+    socket.on('client:place-card', (payload, callback) => {
+      const { playerId, roomId } = socket.data
+      if (!playerId || !roomId) {
+        callback({ ok: false, message: 'You are not in a room.' })
+        return
+      }
+
+      const result = roomManager.placeCard(roomId, playerId, payload)
+      if (!result.ok) {
+        callback(result)
+        return
+      }
+
+      emitRoomState(io, result.room)
+      callback({ ok: true })
+    })
+
+    socket.on('client:submit-timeline-bonus', (payload, callback) => {
+      const { playerId, roomId } = socket.data
+      if (!playerId || !roomId) {
+        callback({ ok: false, message: 'You are not in a room.' })
+        return
+      }
+
+      const result = roomManager.submitTimelineBonus(roomId, playerId, payload)
       if (!result.ok) {
         callback(result)
         return

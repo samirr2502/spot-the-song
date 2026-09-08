@@ -29,7 +29,7 @@ const TURN_GAMES: Array<{
     title: 'Timeline',
     description: 'Place songs in chronological order on your timeline.',
     setupPath: '/create/turns/timeline',
-    available: false,
+    available: true,
   },
 ]
 

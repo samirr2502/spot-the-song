@@ -1,11 +1,12 @@
 import { createServer } from 'node:http'
 import { createApp } from './app.js'
+import { getClientOrigin } from './clientOrigin.js'
 import { attachSocketHandlers } from './socket.js'
 
 const port = Number(process.env.PORT) || 3001
-const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:5173'
+const clientOrigin = getClientOrigin()
 
-const app = createApp()
+const app = createApp(clientOrigin)
 const httpServer = createServer(app)
 
 attachSocketHandlers(httpServer, clientOrigin)

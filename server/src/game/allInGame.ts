@@ -59,6 +59,9 @@ export function resetRoundRuntime(runtime: RoomRuntime): void {
   runtime.roundAnswers = new Map()
   runtime.roundVotes = new Map()
   runtime.roundRatings = new Map()
+  runtime.timelinePlacementIndex = null
+  runtime.timelineBonusAnswers = null
+  runtime.timelinePlacementLocked = false
   runtime.roundStartedAt = null
   runtime.currentTrack = null
 }

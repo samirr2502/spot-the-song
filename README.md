@@ -44,13 +44,13 @@ spot-the-song/
 
 ## Current phase
 
-**Phase 5 — Sing Along** ✓
+**Phase 6 — Timeline** ✓
 
-- Turns mode: one performer sings while others listen
-- Audience rates 1–10; average × 10 = round points
-- Setup at `/create/turns/sing` with Spotify or demo tracks
+- Personal timelines with starter cards at game start
+- Listen → place hidden-year card → reveal and validate chronology
+- Optional title/artist bonus points; setup at `/create/turns/timeline`
 
-Next: **Phase 6 — Timeline**
+Next: **Phase 7 — Polish + Reliability**
 
 ## Spotify credentials
 

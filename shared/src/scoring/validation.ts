@@ -51,3 +51,24 @@ export function validateSingAlongSettings(settings: {
 
   return null
 }
+
+export function validateTimelineSettings(settings: {
+  roundCount: number
+  clipDurationSeconds: number
+  guessTimerSeconds?: number
+}): string | null {
+  if (settings.roundCount < 1 || settings.roundCount > 20) {
+    return 'Choose between 1 and 20 rounds.'
+  }
+
+  if (settings.clipDurationSeconds < 5 || settings.clipDurationSeconds > 60) {
+    return 'Clip duration must be between 5 and 60 seconds.'
+  }
+
+  const guessTimer = settings.guessTimerSeconds ?? 30
+  if (guessTimer < 10 || guessTimer > 120) {
+    return 'Placement time must be between 10 and 120 seconds.'
+  }
+
+  return null
+}

@@ -40,8 +40,15 @@ export function RoomHowToPlayPage() {
 
   const isTurnGuess = room.settings.playMode === 'turns' && room.settings.turnGame === 'guess'
   const isSingAlong = room.settings.playMode === 'turns' && room.settings.turnGame === 'sing'
+  const isTimeline = room.settings.playMode === 'turns' && room.settings.turnGame === 'timeline'
 
-  const modeLabel = isTurnGuess ? 'Turn Guess' : isSingAlong ? 'Sing Along' : 'All In'
+  const modeLabel = isTurnGuess
+    ? 'Turn Guess'
+    : isSingAlong
+      ? 'Sing Along'
+      : isTimeline
+        ? 'Timeline'
+        : 'All In'
 
   return (
     <main className="page">
@@ -64,6 +71,14 @@ export function RoomHowToPlayPage() {
             <li>Everyone else rates the performance from 1 to 10.</li>
             <li>The average rating becomes that round&apos;s score.</li>
             <li>Most total points after all rounds wins.</li>
+          </ul>
+        ) : isTimeline ? (
+          <ul className="how-to-list">
+            <li>Everyone starts with one revealed starter song on their timeline.</li>
+            <li>On your turn, listen to a hidden-year clip.</li>
+            <li>Place the card before, between, or after your existing cards.</li>
+            <li>Optional title/artist guesses can earn bonus points.</li>
+            <li>Correct chronological placement keeps the card and scores points.</li>
           </ul>
         ) : (
           <ul className="how-to-list">

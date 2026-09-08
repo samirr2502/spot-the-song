@@ -1,5 +1,5 @@
-import type { GameRoom, GameSettings, Player, RatingPayload, RoundResultsPayload, SubmitAnswersPayload, VotePayload } from '@spot-the-song/shared'
-import { DEFAULT_GAME_SETTINGS, validateGameSettings, validateSingAlongSettings } from '@spot-the-song/shared'
+import type { GameRoom, GameSettings, PlaceCardPayload, Player, RatingPayload, RoundResultsPayload, SubmitAnswersPayload, TimelineBonusPayload, VotePayload } from '@spot-the-song/shared'
+import { DEFAULT_GAME_SETTINGS, validateGameSettings, validateSingAlongSettings, validateTimelineSettings } from '@spot-the-song/shared'
 import {
   allConnectedSubmitted,
   resetRoundRuntime,
@@ -16,11 +16,21 @@ import {
 } from '../game/turnGuessGame.js'
 import {
   allSingRatingsSubmitted,
-  getActivePlayerForTurn,
   scoreSingAlongRoundResults,
   storeRating,
   validateRatingPayload,
 } from '../game/singAlongGame.js'
+import {
+  bonusFieldsEnabled,
+  canFinishTimelineTurn,
+  getActivePlayerForTurn,
+  initializePlayerTimelines,
+  scoreTimelineRoundResults,
+  storeTimelineBonus,
+  storeTimelinePlacement,
+  validateInsertIndex,
+  toPublicTimelines,
+} from '../game/timelineGame.js'
 import {
   clearRoundTimer,
   createRoomRuntime,
@@ -101,6 +111,13 @@ export class RoomManager {
       }
     }
 
+    if (settings.playMode === 'turns' && settings.turnGame === 'timeline') {
+      const validationError = validateTimelineSettings(settings)
+      if (validationError) {
+        return { ok: false, message: validationError }
+      }
+    }
+
     let musicImport
     try {
       musicImport = await resolveMusicImport(spotifyUrl)
@@ -119,6 +136,17 @@ export class RoomManager {
       return {
         ok: false,
         message: `Only ${musicImport.tracks.length} tracks available — lower the round count.`,
+      }
+    }
+
+    if (
+      settings.playMode === 'turns' &&
+      settings.turnGame === 'timeline' &&
+      musicImport.tracks.length < settings.roundCount + 1
+    ) {
+      return {
+        ok: false,
+        message: `Need at least ${settings.roundCount + 1} tracks for timeline rounds and a starter card.`,
       }
     }
 
@@ -239,6 +267,16 @@ export class RoomManager {
       return {
         ok: false,
         message: 'Not enough tracks for this many rounds. Lower the round count.',
+      }
+    }
+
+    if (
+      this.isTimeline(room) &&
+      runtime.trackPool.length < room.settings.roundCount + room.players.length
+    ) {
+      return {
+        ok: false,
+        message: `Need at least ${room.settings.roundCount + room.players.length} tracks for timeline starter cards and rounds.`,
       }
     }
 
@@ -380,6 +418,85 @@ export class RoomManager {
     return { ok: true, room: this.getPublicRoom(roomId)! }
   }
 
+  placeCard(roomId: string, playerId: string, payload: PlaceCardPayload): SimpleResult {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime) return { ok: false, message: 'Room not found.' }
+
+    if (!this.isTimeline(room)) {
+      return { ok: false, message: 'Timeline placement is not active.' }
+    }
+
+    if (room.status !== 'playing' || room.currentRound?.phase !== 'answering') {
+      return { ok: false, message: 'Not accepting placements right now.' }
+    }
+
+    if (room.currentRound.activePlayerId !== playerId) {
+      return { ok: false, message: 'Only the active player can place a card.' }
+    }
+
+    if (runtime.timelinePlacementLocked) {
+      return { ok: false, message: 'You already placed this card.' }
+    }
+
+    const validationError = validateInsertIndex(room, runtime, playerId, payload.insertIndex)
+    if (validationError) {
+      return { ok: false, message: validationError }
+    }
+
+    storeTimelinePlacement(runtime, payload.insertIndex)
+    syncCurrentRoundPublic(room, runtime)
+
+    if (canFinishTimelineTurn(room, runtime)) {
+      return this.finishTimelineRound(roomId)
+    }
+
+    return { ok: true, room: this.getPublicRoom(roomId)! }
+  }
+
+  submitTimelineBonus(
+    roomId: string,
+    playerId: string,
+    payload: TimelineBonusPayload,
+  ): SimpleResult {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime) return { ok: false, message: 'Room not found.' }
+
+    if (!this.isTimeline(room)) {
+      return { ok: false, message: 'Timeline bonus guesses are not active.' }
+    }
+
+    if (room.status !== 'playing' || room.currentRound?.phase !== 'answering') {
+      return { ok: false, message: 'Not accepting bonus guesses right now.' }
+    }
+
+    if (room.currentRound.activePlayerId !== playerId) {
+      return { ok: false, message: 'Only the active player can submit bonus guesses.' }
+    }
+
+    if (!runtime.timelinePlacementLocked) {
+      return { ok: false, message: 'Place the card on your timeline first.' }
+    }
+
+    if (runtime.timelineBonusAnswers !== null) {
+      return { ok: false, message: 'Bonus guesses already submitted.' }
+    }
+
+    if (!bonusFieldsEnabled(room)) {
+      return { ok: false, message: 'Bonus guesses are disabled for this game.' }
+    }
+
+    storeTimelineBonus(runtime, payload)
+    syncCurrentRoundPublic(room, runtime)
+
+    if (canFinishTimelineTurn(room, runtime)) {
+      return this.finishTimelineRound(roomId)
+    }
+
+    return { ok: true, room: this.getPublicRoom(roomId)! }
+  }
+
   continueAfterResults(roomId: string, hostPlayerId: string): SimpleResult {
     const room = this.rooms.get(roomId)
     if (!room) return { ok: false, message: 'Room not found.' }
@@ -423,6 +540,7 @@ export class RoomManager {
     runtime.lastRoundResults = null
     runtime.howToPlayAcks.clear()
     runtime.turnRotationIndex = 0
+    runtime.playerTimelines.clear()
     resetRoundRuntime(runtime)
     clearRoundTimer(runtime)
 
@@ -464,6 +582,7 @@ export class RoomManager {
     runtime?.roundAnswers.delete(playerId)
     runtime?.roundVotes.delete(playerId)
     runtime?.roundRatings.delete(playerId)
+    runtime?.playerTimelines.delete(playerId)
     runtime?.howToPlayAcks.delete(playerId)
 
     for (const [token, session] of this.sessions.entries()) {
@@ -501,7 +620,12 @@ export class RoomManager {
   getPublicRoom(roomId: string): GameRoom | null {
     const room = this.rooms.get(roomId)
     if (!room) return null
-    return toPublicRoom(room, this.runtimes.get(roomId))
+    const runtime = this.runtimes.get(roomId)
+    const publicRoom = toPublicRoom(room, runtime)
+    if (runtime && this.isTimeline(room)) {
+      publicRoom.timelines = toPublicTimelines(room, runtime)
+    }
+    return publicRoom
   }
 
   getRoomByCode(code: string): GameRoom | undefined {
@@ -530,7 +654,8 @@ export class RoomManager {
     return (
       room.settings.playMode === 'all-in' ||
       (room.settings.playMode === 'turns' && room.settings.turnGame === 'guess') ||
-      (room.settings.playMode === 'turns' && room.settings.turnGame === 'sing')
+      (room.settings.playMode === 'turns' && room.settings.turnGame === 'sing') ||
+      (room.settings.playMode === 'turns' && room.settings.turnGame === 'timeline')
     )
   }
 
@@ -542,7 +667,22 @@ export class RoomManager {
     return room.settings.playMode === 'turns' && room.settings.turnGame === 'sing'
   }
 
+  private isTimeline(room: GameRoom): boolean {
+    return room.settings.playMode === 'turns' && room.settings.turnGame === 'timeline'
+  }
+
   private beginFirstRound(roomId: string): SimpleResult {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime) return { ok: false, message: 'Room not found.' }
+
+    if (this.isTimeline(room) && runtime.playerTimelines.size === 0) {
+      const initError = initializePlayerTimelines(room, runtime)
+      if (initError) {
+        return { ok: false, message: initError }
+      }
+    }
+
     return this.startRound(roomId, 1)
   }
 
@@ -556,6 +696,10 @@ export class RoomManager {
 
     if (this.isSingAlong(room)) {
       return this.startSingAlongRound(roomId, roundIndex)
+    }
+
+    if (this.isTimeline(room)) {
+      return this.startTimelineRound(roomId, roundIndex)
     }
 
     return this.startAllInRound(roomId, roundIndex)
@@ -764,6 +908,102 @@ export class RoomManager {
     room.currentRound.endsAt = null
 
     const roundResults = scoreSingAlongRoundResults(room, runtime)
+    runtime.turnRotationIndex += 1
+    room.status = 'round-results'
+
+    const publicRoom = this.getPublicRoom(roomId)!
+    this.emitHandlers?.onRoomUpdated(publicRoom)
+    if (roundResults) {
+      runtime.lastRoundResults = roundResults
+      this.emitHandlers?.onRoundResults(roomId, roundResults)
+    }
+
+    return { ok: true, room: publicRoom, roundResults: roundResults ?? undefined }
+  }
+
+  private startTimelineRound(roomId: string, roundIndex: number): SimpleResult {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime) return { ok: false, message: 'Room not found.' }
+
+    clearRoundTimer(runtime)
+    resetRoundRuntime(runtime)
+
+    const track = pickRandomTrack(runtime)
+    if (!track) {
+      room.status = 'final-results'
+      room.currentRound = null
+      return { ok: true, room: this.getPublicRoom(roomId)! }
+    }
+
+    const activePlayer = getActivePlayerForTurn(room, runtime)
+    const listenTimerMs = room.settings.clipDurationSeconds * 1000
+
+    room.status = 'playing'
+    room.currentRound = {
+      index: roundIndex,
+      phase: 'round-intro',
+      activePlayerId: activePlayer.id,
+      trackId: track.id,
+      endsAt: null,
+      roundTrack: toPublicTrack(track),
+      submittedPlayerIds: [],
+    }
+
+    setTimeout(() => {
+      const liveRoom = this.rooms.get(roomId)
+      const liveRuntime = this.runtimes.get(roomId)
+      if (!liveRoom || !liveRuntime || !liveRoom.currentRound) return
+      if (liveRoom.status !== 'playing') return
+
+      liveRuntime.roundStartedAt = Date.now()
+      liveRoom.currentRound.phase = 'playing'
+      liveRoom.currentRound.endsAt = Date.now() + listenTimerMs
+      syncCurrentRoundPublic(liveRoom, liveRuntime)
+
+      this.emitHandlers?.onRoomUpdated(this.getPublicRoom(roomId)!)
+
+      liveRuntime.roundTimer = setTimeout(() => {
+        this.openTimelineAnswering(roomId)
+      }, listenTimerMs)
+    }, ROUND_INTRO_MS)
+
+    return { ok: true, room: this.getPublicRoom(roomId)! }
+  }
+
+  private openTimelineAnswering(roomId: string): void {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime || !room.currentRound) return
+    if (room.status !== 'playing') return
+
+    clearRoundTimer(runtime)
+
+    const placementTimerMs = (room.settings.guessTimerSeconds ?? 30) * 1000
+    room.currentRound.phase = 'answering'
+    room.currentRound.endsAt = Date.now() + placementTimerMs
+    syncCurrentRoundPublic(room, runtime)
+
+    this.emitHandlers?.onRoomUpdated(this.getPublicRoom(roomId)!)
+
+    runtime.roundTimer = setTimeout(() => {
+      void this.finishTimelineRound(roomId)
+    }, placementTimerMs)
+  }
+
+  private finishTimelineRound(roomId: string): SimpleResult {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime || !room.currentRound) {
+      return { ok: false, message: 'No active round.' }
+    }
+
+    clearRoundTimer(runtime)
+
+    room.currentRound.phase = 'reveal'
+    room.currentRound.endsAt = null
+
+    const roundResults = scoreTimelineRoundResults(room, runtime)
     runtime.turnRotationIndex += 1
     room.status = 'round-results'
 
