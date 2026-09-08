@@ -995,6 +995,21 @@ a {
   margin-top: var(--space-xs);
 }
 
+.how-to-tagline {
+  margin: 0 0 var(--space-sm);
+  color: var(--ink-muted);
+}
+
+.how-to-section__title {
+  margin: 0 0 var(--space-sm);
+  font-family: var(--font-hand);
+  font-size: 1.6rem;
+}
+
+.how-to-section .how-to-list {
+  margin-bottom: 0;
+}
+
 /* --- Sketch primitives --- */
 
 .sketch-card,

@@ -1,9 +1,11 @@
 import { useEffect } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { RoomSessionGate } from '../components/RoomSessionGate'
+import { HowToPlaySteps } from '../components/HowToPlaySteps'
 import { SketchButton, SketchCard } from '../components/sketch'
 import { useRoom } from '../context/RoomContext'
 import { useRoomStatusRedirect, roomPathForStatus } from '../hooks/useRoomNavigation'
+import { getHowToPlayModeForSettings } from '../lib/howToPlay'
 
 function RoomHowToPlayContent() {
   const navigate = useNavigate()
@@ -45,55 +47,13 @@ function RoomHowToPlayContent() {
 
   if (!room) return null
 
-  const isTurnGuess = room.settings.playMode === 'turns' && room.settings.turnGame === 'guess'
-  const isSingAlong = room.settings.playMode === 'turns' && room.settings.turnGame === 'sing'
-  const isTimeline = room.settings.playMode === 'turns' && room.settings.turnGame === 'timeline'
-
-  const modeLabel = isTurnGuess
-    ? 'Turn Guess'
-    : isSingAlong
-      ? 'Sing Along'
-      : isTimeline
-        ? 'Timeline'
-        : 'All In'
+  const mode = getHowToPlayModeForSettings(room.settings)
 
   return (
     <main className="page page--fade-in">
       <SketchCard tiltSeed="how-to-play">
-        <h1 className="page-title page-title--sm">How to play — {modeLabel}</h1>
-
-        {isTurnGuess ? (
-          <ul className="how-to-list">
-            <li>Each round, one player is active — they listen and guess aloud.</li>
-            <li>When voting starts, judges see the song and vote YES or NO on each field.</li>
-            <li>The active player does not see the song until results.</li>
-            <li>Majority wins per field — ties count as NO.</li>
-            <li>Most total points after all rounds wins.</li>
-          </ul>
-        ) : isSingAlong ? (
-          <ul className="how-to-list">
-            <li>Each round, one player performs — they open a blind Spotify link without seeing the title.</li>
-            <li>Everyone else listens while they sing along to the mystery song.</li>
-            <li>When the host starts voting, judges see the song and rate the performance 1–10.</li>
-            <li>The performer only sees the song after ratings are in.</li>
-            <li>Most total points after all rounds wins.</li>
-          </ul>
-        ) : isTimeline ? (
-          <ul className="how-to-list">
-            <li>Everyone starts with one revealed starter song on their timeline.</li>
-            <li>On your turn, listen to a hidden-year clip.</li>
-            <li>Place the card before, between, or after your existing cards.</li>
-            <li>Optional title/artist guesses can earn bonus points.</li>
-            <li>Correct chronological placement keeps the card and scores points.</li>
-          </ul>
-        ) : (
-          <ul className="how-to-list">
-            <li>Listen to the clip when each round starts.</li>
-            <li>Fill in every field the host enabled (title, artist, album, year).</li>
-            <li>Submit before time runs out — faster answers earn a speed bonus.</li>
-            <li>Most total points after all rounds wins.</li>
-          </ul>
-        )}
+        <h1 className="page-title page-title--sm">How to play — {mode.title}</h1>
+        <HowToPlaySteps mode={mode} showTagline={false} />
 
         <p className="lobby-players__status">
           Ready: {readyIds.length} / {connectedCount}

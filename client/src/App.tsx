@@ -11,7 +11,7 @@ import { HomePage } from './pages/HomePage'
 import { JoinPage } from './pages/JoinPage'
 import { LandingPage } from './pages/LandingPage'
 import { LobbyPage } from './pages/LobbyPage'
-import { PlaceholderPage } from './pages/PlaceholderPage'
+import { HowToPlayPage } from './pages/HowToPlayPage'
 import { SingAlongSetupPage } from './pages/SingAlongSetupPage'
 import { TimelineSetupPage } from './pages/TimelineSetupPage'
 import { TurnGuessSetupPage } from './pages/TurnGuessSetupPage'
@@ -91,10 +91,7 @@ export function App() {
             </RequireName>
           }
         />
-        <Route
-          path="/how-to-play"
-          element={<PlaceholderPage title="How to play" phase="see room flow" />}
-        />
+        <Route path="/how-to-play" element={<HowToPlayPage />} />
         <Route
           path="/room/:code"
           element={
