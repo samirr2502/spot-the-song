@@ -38,6 +38,7 @@ import {
   type RoomRuntime,
   toPublicTrack,
 } from '../game/roomRuntime.js'
+import { countSpotifyTracks, MIN_SPOTIFY_TRACKS } from '../music/types.js'
 import { resolveMusicImport } from '../music/resolveMusicImport.js'
 import { generateRoomCode, isValidRoomCode, normalizeRoomCode } from './code.js'
 import { generateId, generateSessionToken } from './id.js'
@@ -129,7 +130,18 @@ export class RoomManager {
     }
 
     if (musicImport.tracks.length === 0) {
-      return { ok: false, message: 'No tracks available for this game.' }
+      return {
+        ok: false,
+        message: 'No tracks found in this playlist. Try another link or leave blank for demo tracks.',
+      }
+    }
+
+    const spotifyTrackCount = countSpotifyTracks(musicImport.tracks)
+    if (musicImport.source === 'spotify' && spotifyTrackCount < MIN_SPOTIFY_TRACKS) {
+      return {
+        ok: false,
+        message: 'No playable Spotify tracks in this link. Try another playlist or album.',
+      }
     }
 
     if (musicImport.tracks.length < settings.roundCount) {
@@ -559,13 +571,20 @@ export class RoomManager {
 
     player.connected = false
 
+    this.handlePlayerUnavailableMidRound(roomId, playerId)
+
     this.clearDisconnectTimer(playerId)
     const timer = setTimeout(() => {
       this.removePlayer(playerId, roomId)
     }, DISCONNECT_GRACE_MS)
     this.disconnectTimers.set(playerId, timer)
 
-    return this.getPublicRoom(roomId)
+    const publicRoom = this.getPublicRoom(roomId)
+    if (publicRoom) {
+      this.emitHandlers?.onRoomUpdated(publicRoom)
+    }
+
+    return publicRoom
   }
 
   removePlayer(playerId: string, roomId: string): GameRoom | null {
@@ -598,6 +617,10 @@ export class RoomManager {
 
     if (wasHost) {
       this.promoteHost(room)
+    }
+
+    if (room.status === 'playing' && runtime) {
+      this.handlePlayerUnavailableMidRound(roomId, playerId)
     }
 
     if (room.status === 'playing' && runtime) {
@@ -1095,6 +1118,37 @@ export class RoomManager {
     room.hostPlayerId = nextHost.id
     for (const player of room.players) {
       player.isHost = player.id === nextHost.id
+    }
+  }
+
+  private handlePlayerUnavailableMidRound(roomId: string, playerId: string): void {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime || room.status !== 'playing' || !room.currentRound) return
+
+    const activePlayerId = room.currentRound.activePlayerId
+    if (!activePlayerId || activePlayerId !== playerId) return
+
+    const phase = room.currentRound.phase
+
+    if (this.isTurnGuess(room)) {
+      if (phase === 'playing' || phase === 'round-intro') {
+        this.openTurnGuessVoting(roomId)
+      }
+      return
+    }
+
+    if (this.isSingAlong(room)) {
+      if (phase === 'playing' || phase === 'round-intro') {
+        this.openSingAlongRating(roomId)
+      }
+      return
+    }
+
+    if (this.isTimeline(room)) {
+      if (phase === 'playing' || phase === 'answering' || phase === 'round-intro') {
+        void this.finishTimelineRound(roomId)
+      }
     }
   }
 

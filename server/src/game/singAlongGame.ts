@@ -1,6 +1,7 @@
 import type { GameRoom, RatingPayload, RoundResultsPayload } from '@spot-the-song/shared'
 import { scoreSingAlongRound, validateRatingValue } from '@spot-the-song/shared'
 import type { RoomRuntime } from './roomRuntime.js'
+import { toRevealTrack } from './roomRuntime.js'
 import { buildLeaderboard } from './allInGame.js'
 import { getActivePlayerForTurn } from './turnGuessGame.js'
 
@@ -31,7 +32,7 @@ export function scoreSingAlongRoundResults(
     activePlayerId,
     averageRating,
     ratingCount,
-    track: { ...track },
+    track: toRevealTrack(track),
     playerResults: [result],
     leaderboard: buildLeaderboard(room),
   }

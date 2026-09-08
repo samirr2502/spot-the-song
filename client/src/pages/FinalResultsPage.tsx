@@ -1,9 +1,10 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { RoomSessionGate } from '../components/RoomSessionGate'
 import { SketchAvatar, SketchButton, SketchCard, SketchDivider } from '../components/sketch'
 import { useRoom } from '../context/RoomContext'
 import { useRoomStatusRedirect } from '../hooks/useRoomNavigation'
 
-export function FinalResultsPage() {
+function FinalResultsContent() {
   const navigate = useNavigate()
   const { code = '' } = useParams()
   const { room, session, isHost, busy, playAgain, leaveRoom } = useRoom()
@@ -11,9 +12,8 @@ export function FinalResultsPage() {
   useRoomStatusRedirect(code, ['final-results'])
 
   const normalizedCode = code.toUpperCase()
-  const inRoom = room?.code === normalizedCode && session?.roomCode === normalizedCode
 
-  const leaderboard = inRoom
+  const leaderboard = room
     ? room.players
         .map((player) => ({
           ...player,
@@ -36,18 +36,10 @@ export function FinalResultsPage() {
     navigate('/home')
   }
 
-  if (!inRoom || !room) {
-    return (
-      <main className="page">
-        <SketchCard tiltSeed="results-loading">
-          <p>Loading results…</p>
-        </SketchCard>
-      </main>
-    )
-  }
+  if (!room) return null
 
   return (
-    <main className="page">
+    <main className="page page--fade-in">
       <header className="page-header">
         <p className="page-eyebrow">game over</p>
         <h1 className="page-title page-title--sm">Final scores</h1>
@@ -94,5 +86,15 @@ export function FinalResultsPage() {
         </SketchButton>
       </Link>
     </main>
+  )
+}
+
+export function FinalResultsPage() {
+  const { code = '' } = useParams()
+
+  return (
+    <RoomSessionGate roomCode={code} loadingMessage="Syncing results…">
+      <FinalResultsContent />
+    </RoomSessionGate>
   )
 }

@@ -12,6 +12,7 @@
     "dev": "npm run build -w @spot-the-song/shared && concurrently -n client,server -c cyan,magenta \"npm run dev -w @spot-the-song/client\" \"npm run dev -w @spot-the-song/server\"",
     "build": "npm run build -w @spot-the-song/shared && npm run build -w @spot-the-song/server && npm run build -w @spot-the-song/client",
     "typecheck": "npm run build -w @spot-the-song/shared && npm run typecheck -w @spot-the-song/shared && npm run typecheck -w @spot-the-song/server && npm run typecheck -w @spot-the-song/client",
+    "test": "npm run build -w @spot-the-song/shared && npm run test -w @spot-the-song/shared",
     "lint": "npm run lint -w @spot-the-song/client",
     "start": "npm run start -w @spot-the-song/server"
   },

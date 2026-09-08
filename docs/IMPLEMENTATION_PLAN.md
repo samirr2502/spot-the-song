@@ -220,16 +220,16 @@ Complete playable Timeline mode.
 
 ### Tasks
 
-- [ ] Reconnect mid-game
-- [ ] Host leave → promote or end
-- [ ] Player leave mid-round
-- [ ] Empty Spotify / duplicate track handling
-- [ ] Loading and error states everywhere
-- [ ] Sketch transitions + animation polish
-- [ ] Audio state indicators
+- [x] Reconnect mid-game
+- [x] Host leave → promote or end
+- [x] Player leave mid-round
+- [x] Empty Spotify / duplicate track handling
+- [x] Loading and error states everywhere
+- [x] Sketch transitions + animation polish
+- [x] Audio state indicators
 - [ ] Mobile Safari + Android Chrome testing
 - [ ] Accessibility pass
-- [ ] Unit tests: scoring + state transitions
+- [x] Unit tests: scoring + state transitions
 
 ### Do NOT add
 
@@ -237,7 +237,47 @@ Accounts, profiles, friends, currency, achievements, cosmetics, progression, adm
 
 ### Phase 7 completion notes
 
-_(pending)_
+_Completed 2026-09-08._
+
+- Mid-game reconnect: `RoomSessionGate` + `RoomRouteSync` restore session and route to the correct screen.
+- Disconnect handling: active turn player offline skips to voting/rating/reveal; host auto-promotes to next online player.
+- Spotify import: dedupe by id + normalized title/artist; reject playlists with zero playable previews.
+- `ClipPlayer` shows loading/playing/error/muted audio states.
+- Vitest unit tests for matching, All In scoring, and Turn Guess voting in `shared/`.
+- Page fade-in transitions (respects `prefers-reduced-motion`).
+
+---
+
+## PHASE 8 — SPOTIFY FULL PLAYBACK (HOST)
+
+**Goal:** Host plays real Spotify tracks (first N seconds from 0:00) via Web Playback SDK — not preview URLs.
+
+See [`SPOTIFY_ARCHITECTURE.md`](./SPOTIFY_ARCHITECTURE.md) for full design.
+
+### Phase 8a — Architecture + dev test (current)
+
+- [x] Update `Track` model (`spotifyUri`, `spotifyUrl`, `durationMs`)
+- [x] `MusicCatalogProvider` / `PlaybackProvider` interfaces in shared
+- [x] `SpotifyCatalogProvider` (server) — preview_url deprecated
+- [x] Host OAuth routes (`/api/spotify/*`)
+- [x] `SpotifyPlaybackService` (Web Playback SDK wrapper)
+- [x] Dev route `/dev/spotify` — connect, play first 15s/30s, pause
+- [x] Documentation updated
+
+### Phase 8b — Multiplayer integration (next — do not start until 8a verified)
+
+- [ ] Setup: Connect Spotify + clip duration UI
+- [ ] Socket events: host play command, clip-ended, privacy-safe round payloads
+- [ ] Host-only playback during rounds; guests see “Listen…”
+- [ ] Reveal: Open in Spotify link
+- [ ] Remove `ClipPlayer` preview_url path from gameplay
+
+### Phase 8a completion notes
+
+_Completed 2026-09-08._
+
+- Standalone test at `/dev/spotify` — verify Premium account + player init before 8b.
+- Multiplayer still uses legacy preview `ClipPlayer` until Phase 8b.
 
 ---
 
@@ -258,6 +298,7 @@ npm run lint         # eslint on client
 | `PORT` | server | 0 |
 | `CLIENT_ORIGIN` | server | 0 |
 | `VITE_SERVER_URL` | client | 0 |
-| `SPOTIFY_CLIENT_ID` | server | 3 |
-| `SPOTIFY_CLIENT_SECRET` | server | 3 |
+| `SPOTIFY_CLIENT_ID` | server | 3 / 8 |
+| `SPOTIFY_CLIENT_SECRET` | server | 3 / 8 |
+| `SPOTIFY_REDIRECT_URI` | server | 8 |
 | `SUPABASE_URL` | server (optional) | 7+ |

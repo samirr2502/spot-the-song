@@ -1,10 +1,11 @@
 import { useEffect } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { RoomSessionGate } from '../components/RoomSessionGate'
 import { SketchButton, SketchCard } from '../components/sketch'
 import { useRoom } from '../context/RoomContext'
 import { useRoomStatusRedirect, roomPathForStatus } from '../hooks/useRoomNavigation'
 
-export function RoomHowToPlayPage() {
+function RoomHowToPlayContent() {
   const navigate = useNavigate()
   const { code = '' } = useParams()
   const { room, session, busy, error, ackHowToPlay, clearError } = useRoom()
@@ -12,7 +13,6 @@ export function RoomHowToPlayPage() {
   useRoomStatusRedirect(code, ['how-to-play'])
 
   const normalizedCode = code.toUpperCase()
-  const inRoom = room?.code === normalizedCode && session?.roomCode === normalizedCode
   const readyIds = room?.readyPlayerIds ?? []
   const connectedCount = room?.players.filter((player) => player.connected).length ?? 0
   const isReady = !!session && readyIds.includes(session.playerId)
@@ -28,15 +28,7 @@ export function RoomHowToPlayPage() {
     await ackHowToPlay()
   }
 
-  if (!inRoom || !room) {
-    return (
-      <main className="page">
-        <SketchCard tiltSeed="how-to-loading">
-          <p>Loading…</p>
-        </SketchCard>
-      </main>
-    )
-  }
+  if (!room) return null
 
   const isTurnGuess = room.settings.playMode === 'turns' && room.settings.turnGame === 'guess'
   const isSingAlong = room.settings.playMode === 'turns' && room.settings.turnGame === 'sing'
@@ -51,7 +43,7 @@ export function RoomHowToPlayPage() {
         : 'All In'
 
   return (
-    <main className="page">
+    <main className="page page--fade-in">
       <SketchCard tiltSeed="how-to-play">
         <h1 className="page-title page-title--sm">How to play — {modeLabel}</h1>
         <p className="page-subtitle">Room {normalizedCode}</p>
@@ -118,5 +110,15 @@ export function RoomHowToPlayPage() {
         </SketchButton>
       </Link>
     </main>
+  )
+}
+
+export function RoomHowToPlayPage() {
+  const { code = '' } = useParams()
+
+  return (
+    <RoomSessionGate roomCode={code} loadingMessage="Syncing room…">
+      <RoomHowToPlayContent />
+    </RoomSessionGate>
   )
 }

@@ -1,3 +1,5 @@
+import { getSpotifyCatalogUrlError } from '@spot-the-song/shared'
+
 export type MusicPreviewResult = {
   name: string
   imageUrl?: string
@@ -8,6 +10,14 @@ export type MusicPreviewResult = {
 }
 
 export async function previewMusicLink(url: string): Promise<MusicPreviewResult> {
+  const trimmed = url.trim()
+  if (trimmed) {
+    const validationError = getSpotifyCatalogUrlError(trimmed)
+    if (validationError) {
+      throw new Error(validationError)
+    }
+  }
+
   const response = await fetch('/api/music/preview', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

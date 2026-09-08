@@ -1,24 +1,19 @@
 import { QRCodeSVG } from 'qrcode.react'
-import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useEffect } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { RoomSessionGate } from '../components/RoomSessionGate'
 import { SketchAvatar, SketchButton, SketchCard, SketchDivider } from '../components/sketch'
 import { useRoom } from '../context/RoomContext'
-import { useSocketContext } from '../context/SocketContext'
-import { emitWithAck } from '../lib/socketAck'
 import { buildJoinUrl } from '../lib/session'
 import { roomPathForStatus } from '../hooks/useRoomNavigation'
 
-export function LobbyPage() {
+function LobbyContent() {
   const navigate = useNavigate()
   const { code = '' } = useParams()
-  const { socket, connectionState } = useSocketContext()
   const { room, session, isHost, error, busy, startGame, leaveRoom, clearError } = useRoom()
-  const [lobbyError, setLobbyError] = useState<string | null>(null)
-  const [retryingLobby, setRetryingLobby] = useState(false)
 
   const normalizedCode = code.toUpperCase()
   const joinUrl = buildJoinUrl(normalizedCode)
-  const inCorrectRoom = room?.code === normalizedCode && session?.roomCode === normalizedCode
 
   useEffect(() => {
     if (!room || room.code !== normalizedCode) return
@@ -26,47 +21,6 @@ export function LobbyPage() {
       navigate(roomPathForStatus(room.code, room.status), { replace: true })
     }
   }, [room, normalizedCode, navigate])
-
-  useEffect(() => {
-    if (inCorrectRoom || connectionState !== 'connected' || !session || session.roomCode !== normalizedCode || !socket) {
-      return
-    }
-
-    let cancelled = false
-    const timer = window.setTimeout(() => {
-      if (cancelled) return
-
-      setRetryingLobby(true)
-      setLobbyError(null)
-
-      emitWithAck<{ ok: true } | { ok: false; message: string }>(
-        socket,
-        'client:reconnect-room',
-        { sessionToken: session.sessionToken },
-      )
-        .then((result) => {
-          if (cancelled) return
-          if (!result.ok) {
-            setLobbyError(result.message)
-          }
-        })
-        .catch((err) => {
-          if (!cancelled) {
-            setLobbyError(err instanceof Error ? err.message : 'Could not connect to the lobby.')
-          }
-        })
-        .finally(() => {
-          if (!cancelled) {
-            setRetryingLobby(false)
-          }
-        })
-    }, 1500)
-
-    return () => {
-      cancelled = true
-      window.clearTimeout(timer)
-    }
-  }, [inCorrectRoom, connectionState, session, normalizedCode, socket])
 
   async function handleStart() {
     clearError()
@@ -81,40 +35,10 @@ export function LobbyPage() {
     navigate('/home')
   }
 
-  if (!inCorrectRoom) {
-    const waitingMessage =
-      connectionState !== 'connected'
-        ? 'Waiting for a live server connection…'
-        : session?.roomCode === normalizedCode
-          ? retryingLobby
-            ? 'Syncing lobby…'
-            : 'Restoring your session…'
-          : 'Join this room from the join screen if you have not yet.'
-
-    return (
-      <main className="page">
-        <SketchCard tiltSeed="waiting">
-          <h1 className="page-title page-title--sm">Connecting to lobby…</h1>
-          <p className="page-subtitle">{waitingMessage}</p>
-        </SketchCard>
-        {lobbyError ? <p className="form-error">{lobbyError}</p> : null}
-        {error ? <p className="form-error">{error}</p> : null}
-        {session?.roomCode !== normalizedCode ? (
-          <Link to={`/join?code=${normalizedCode}`}>
-            <SketchButton fullWidth>Join {normalizedCode}</SketchButton>
-          </Link>
-        ) : null}
-        <Link to="/home">
-          <SketchButton variant="ghost" fullWidth>
-            Back home
-          </SketchButton>
-        </Link>
-      </main>
-    )
-  }
+  if (!room || !session) return null
 
   return (
-    <main className="page page--lobby">
+    <main className="page page--lobby page--fade-in">
       <header className="page-header">
         <p className="page-eyebrow">lobby</p>
         <h1 className="page-title page-title--sm">Room {room.code}</h1>
@@ -173,5 +97,15 @@ export function LobbyPage() {
         Leave lobby
       </SketchButton>
     </main>
+  )
+}
+
+export function LobbyPage() {
+  const { code = '' } = useParams()
+
+  return (
+    <RoomSessionGate roomCode={code} loadingMessage="Syncing lobby…">
+      <LobbyContent />
+    </RoomSessionGate>
   )
 }

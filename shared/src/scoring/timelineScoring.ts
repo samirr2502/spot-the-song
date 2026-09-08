@@ -8,10 +8,11 @@ export const TIMELINE_PLACEMENT_POINTS = 100
 export const TIMELINE_BONUS_POINTS = 50
 
 export function isTimelinePlacementCorrect(
-  releaseYear: number,
+  releaseYear: number | null,
   timelineYears: number[],
   insertIndex: number,
 ): boolean {
+  if (releaseYear === null) return false
   const index = Math.max(0, Math.min(insertIndex, timelineYears.length))
   const before = index > 0 ? timelineYears[index - 1] : undefined
   const after = index < timelineYears.length ? timelineYears[index] : undefined
@@ -71,9 +72,9 @@ export function scoreTimelineRound(
 
 export function timelineYearsFromTrackIds(
   trackIds: string[],
-  getYear: (trackId: string) => number | undefined,
+  getYear: (trackId: string) => number | null | undefined,
 ): number[] {
   return trackIds
     .map((trackId) => getYear(trackId))
-    .filter((year): year is number => year !== undefined)
+    .filter((year): year is number => year != null)
 }

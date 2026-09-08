@@ -74,12 +74,32 @@ stateDiagram-v2
 
 | Phase | Client UI |
 |-------|-----------|
-| `round-intro` | “Get ready…” + track artwork sketch |
-| `playing` | Audio player + countdown |
+| `playing` | Host: “♪ Playing on Spotify” + progress. Others: “♪ Listen…” + countdown |
 | `answering` | One input per enabled guess field + Submit |
-| `reveal` | Correct answers + points breakdown |
+| `reveal` | Correct answers + **Open in Spotify** + points breakdown |
 
 _All In collapses `playing` and `answering` — timer runs while inputs are open._
+
+### Host Spotify playback (Phase 8+)
+
+During `playing`, only the **host client** receives a playback command (`spotifyUri`, `startMs`, `durationMs`). Non-host players must not receive title/artist/album/year/`spotifyUrl` before reveal.
+
+```mermaid
+sequenceDiagram
+  participant Server
+  participant Host
+  participant Guests
+
+  Server->>Host: play-track command (uri + clip timing)
+  Server->>Guests: round-started (timer only)
+  Host->>Host: Web Playback SDK play from 0ms
+  Note over Server: Authoritative clip timer
+  Server->>Room: clip-ended → answering phase
+  Server->>Host: pause playback
+  Host->>Host: pause + clear local fallback timer
+```
+
+Server `endsAt` remains authoritative. Host uses a local timeout only as a safety fallback.
 
 ---
 
@@ -97,9 +117,9 @@ stateDiagram-v2
 | Phase | Active player | Other players |
 |-------|---------------|---------------|
 | `round-intro` | “Your turn!” | “Listen…” |
-| `playing` | Prompt checklist, timer | Waiting |
+| `playing` | Prompt checklist, timer | Host Spotify clip / “Listen…” |
 | `voting` | Waiting (cannot vote) | YES/NO per field |
-| `reveal` | Results | Results |
+| `reveal` | Results + Open in Spotify | Results |
 
 ---
 
@@ -135,7 +155,7 @@ stateDiagram-v2
 
 | Phase | UI |
 |-------|-----|
-| `playing` | Hidden-year card + audio |
+| `playing` | Hidden-year card + host Spotify clip |
 | `answering` | Draggable placement + optional title/artist |
 | `reveal` | Year flip + timeline validation animation |
 

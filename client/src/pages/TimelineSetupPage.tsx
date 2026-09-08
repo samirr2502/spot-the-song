@@ -117,7 +117,7 @@ export function TimelineSetupPage() {
             <SketchCard tiltSeed="preview-timeline" className="music-preview">
               <p className="music-preview__name">{preview.name}</p>
               <p className="music-preview__meta">
-                {preview.totalTracks} tracks · {preview.playableCount} with previews
+                {preview.totalTracks} tracks · {preview.playableCount} playable on Spotify
               </p>
             </SketchCard>
           ) : null}

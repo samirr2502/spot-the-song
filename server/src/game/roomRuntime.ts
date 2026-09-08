@@ -68,6 +68,20 @@ export function toPublicTrack(track: Track) {
   return {
     id: track.id,
     previewUrl: track.previewUrl,
-    artworkUrl: track.artworkUrl,
+    artworkUrl: track.artworkUrl ?? undefined,
+  }
+}
+
+/** Full track metadata for round reveal / results only */
+export function toRevealTrack(track: Track) {
+  return {
+    id: track.id,
+    title: track.title,
+    artist: track.artist,
+    album: track.album,
+    year: track.year,
+    artworkUrl: track.artworkUrl ?? undefined,
+    spotifyUrl: track.spotifyUrl,
+    previewUrl: track.previewUrl,
   }
 }

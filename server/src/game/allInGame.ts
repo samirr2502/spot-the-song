@@ -1,7 +1,7 @@
 import type { GameRoom, RoundResultsPayload, SubmitAnswersPayload } from '@spot-the-song/shared'
 import { scorePlayerRound } from '@spot-the-song/shared'
 import type { RoomRuntime, StoredAnswer } from './roomRuntime.js'
-import { toPublicTrack } from './roomRuntime.js'
+import { toPublicTrack, toRevealTrack } from './roomRuntime.js'
 
 export function buildLeaderboard(room: GameRoom) {
   return room.players
@@ -46,7 +46,7 @@ export function scoreRound(
   const payload: RoundResultsPayload = {
     roundIndex: room.currentRound.index,
     mode: 'all-in',
-    track: { ...track },
+    track: toRevealTrack(track),
     playerResults,
     leaderboard: buildLeaderboard(room),
   }
@@ -111,7 +111,7 @@ export function syncCurrentRoundPublic(room: GameRoom, runtime: RoomRuntime): vo
       artist: runtime.currentTrack.artist,
       album: runtime.currentTrack.album,
       year: runtime.currentTrack.year,
-      artworkUrl: runtime.currentTrack.artworkUrl,
+      artworkUrl: runtime.currentTrack.artworkUrl ?? undefined,
     }
   } else {
     room.currentRound.challengeTrack = null
@@ -126,7 +126,7 @@ export function toPublicRoom(room: GameRoom, runtime: RoomRuntime | undefined): 
     trackPool: [],
     trackPoolSize: runtime?.trackPool.length ?? room.trackPool.length,
     playlistName: runtime?.playlistName,
-    playableTrackCount: runtime?.trackPool.filter((track) => track.previewUrl).length,
+    playableTrackCount: runtime?.trackPool.filter((track) => track.spotifyUri).length,
     currentRound: room.currentRound ? { ...room.currentRound } : null,
     readyPlayerIds: runtime ? Array.from(runtime.howToPlayAcks) : room.readyPlayerIds,
   }

@@ -39,27 +39,32 @@ spot-the-song/
 | `npm run dev` | Client + server concurrently |
 | `npm run build` | Production build (shared → server → client) |
 | `npm run typecheck` | TypeScript all workspaces |
-| `npm run lint` | ESLint (client) |
+| `npm run test` | Unit tests (shared scoring) |
 | `npm start` | Run built server |
 
 ## Current phase
 
-**Phase 6 — Timeline** ✓
+**Phase 8a — Spotify full playback (dev test)** ✓
 
-- Personal timelines with starter cards at game start
-- Listen → place hidden-year card → reveal and validate chronology
-- Optional title/artist bonus points; setup at `/create/turns/timeline`
+- Host OAuth + Web Playback SDK test at `/dev/spotify`
+- Catalog/playback abstractions in shared
+- See [`docs/SPOTIFY_ARCHITECTURE.md`](docs/SPOTIFY_ARCHITECTURE.md)
 
-Next: **Phase 7 — Polish + Reliability**
+**Next:** Verify `/dev/spotify` with Premium, then Phase 8b (multiplayer integration).
+
+Legacy multiplayer still uses preview `ClipPlayer` until 8b.
 
 ## Spotify credentials
 
-Set on the server for Phase 3+:
+Server env (`server/.env`):
 
 - `SPOTIFY_CLIENT_ID`
 - `SPOTIFY_CLIENT_SECRET`
+- `SPOTIFY_REDIRECT_URI` — e.g. `http://localhost:3001/api/spotify/callback` (register in [Spotify Developer Dashboard](https://developer.spotify.com/dashboard))
 
-Existing import logic lives in `supabase/functions/spotify-import/` to port into `server/src/music/`.
+**Dev playback test:** open http://localhost:5173/dev/spotify after `npm run dev`. Requires a Spotify account with Premium for Web Playback SDK.
+
+Catalog import uses client-credentials; host playback uses OAuth (see `docs/SPOTIFY_ARCHITECTURE.md`).
 
 ## Tech stack
 

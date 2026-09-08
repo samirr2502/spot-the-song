@@ -11,7 +11,7 @@ export class MockMusicProvider implements MusicProvider {
     return {
       name: 'Demo Playlist',
       tracks: dedupeTracks(SEED_TRACKS.map((track) => ({ ...track }))),
-      skippedCount: SEED_TRACKS.filter((track) => !track.previewUrl).length,
+      skippedCount: 0,
       source: 'mock',
     }
   }

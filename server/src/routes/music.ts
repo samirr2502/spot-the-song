@@ -1,4 +1,5 @@
 import type { Express, Request, Response } from 'express'
+import { getSpotifyCatalogUrlError } from '@spot-the-song/shared'
 import { resolveMusicImport } from '../music/resolveMusicImport.js'
 import { toPreviewResult } from '../music/types.js'
 import { parseSpotifyUrl } from '../music/spotifyImport.js'
@@ -14,7 +15,8 @@ export function registerMusicRoutes(app: Express): void {
       }
 
       if (!parseSpotifyUrl(url)) {
-        return res.status(400).json({ error: 'Paste a Spotify album or playlist link' })
+        const message = getSpotifyCatalogUrlError(url) ?? 'Paste a Spotify album or playlist link'
+        return res.status(400).json({ error: message })
       }
 
       const result = await resolveMusicImport(url)

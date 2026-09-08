@@ -18,7 +18,7 @@ The experience is intentionally social, lightweight, and sketchy — like a hand
 |------|----------------|
 | Arrive | Player enters name on landing screen |
 | Choose | Join existing room (code/QR) or create new game |
-| Configure | Host picks mode, guess fields, rounds, Spotify link |
+| Configure | Host connects Spotify, picks mode, guess fields, rounds, playlist/album link |
 | Lobby | Everyone sees live player list; host starts |
 | Learn | Short sketched “How to Play” for selected mode |
 | Play | Server-driven rounds with timers, answers, votes, scores |
@@ -57,12 +57,15 @@ One active player per round. Three sub-modes:
 ### All In round
 
 1. Server selects random track from pool.
-2. Clip plays (preview URL when available).
-3. Countdown timer runs.
+2. **Host browser** plays first N seconds of the full Spotify track (Web Playback SDK), starting at 0:00. Guests hear through the host’s speakers — they do not need Spotify accounts.
+3. Server-authoritative countdown runs for the clip duration.
 4. Each player submits enabled fields separately.
 5. Server scores fields + speed bonus.
-6. Round results + mini leaderboard.
-7. Repeat until `roundCount` exhausted.
+6. Reveal shows title, artist, album, year, artwork, and **Open in Spotify** link.
+7. Round results + mini leaderboard.
+8. Repeat until `roundCount` exhausted.
+
+**Legacy (until Phase 8b):** multiplayer may still use `previewUrl` + HTML audio via `ClipPlayer`. Target architecture is host-only Spotify playback — see [`SPOTIFY_ARCHITECTURE.md`](./SPOTIFY_ARCHITECTURE.md).
 
 ### Turn Guess round
 
@@ -228,11 +231,16 @@ Track {
   title: string
   artist: string
   album: string
-  year: number
-  artworkUrl?: string
-  previewUrl?: string
+  year: number | null
+  artworkUrl: string | null
+  spotifyUri: string
+  spotifyUrl: string
+  durationMs: number
+  previewUrl?: string  // deprecated — optional legacy only
 }
 ```
+
+Before reveal, clients receive only `RoundTrackPublic` (`id` + optional artwork for sketch UI). Answer metadata and `spotifyUrl` are withheld until reveal.
 
 ### Player
 
@@ -325,28 +333,32 @@ Contracts in `/shared/src/socket/events.ts`. Pattern: `client:*` (client → ser
 
 ---
 
-## 11. Music provider abstraction
+## 11. Music & playback architecture
 
-Game engine never imports Spotify SDK directly.
+Game engine never imports Spotify SDK directly. Four layers:
+
+| Layer | Responsibility |
+|-------|----------------|
+| **Track metadata** | Shared `Track` type |
+| **Music catalog** | `MusicCatalogProvider` — import playlist/album tracks (server) |
+| **Playback** | `PlaybackProvider` — host browser only (Web Playback SDK) |
+| **Game state** | Server timers, scoring, reveal — no Spotify imports |
 
 ```
 /server/src/music/
-  MusicProvider.ts      // interface
-  MockMusicProvider.ts  // Phase 2 dev tracks
-  SpotifyProvider.ts    // Phase 3 — port logic from supabase/functions/spotify-import
+  SpotifyCatalogProvider.ts   // catalog import (client-credentials)
+/client/src/lib/spotify/
+  SpotifyPlaybackService.ts   // Web Playback SDK wrapper
+  authApi.ts                  // host OAuth token fetch
 ```
 
-### Provider interface
+**Host OAuth:** Only the host connects Spotify. Server holds client secret; browser never sees it. See [`SPOTIFY_ARCHITECTURE.md`](./SPOTIFY_ARCHITECTURE.md).
 
-```ts
-interface MusicProvider {
-  parseLink(url: string): Promise<{ name: string; tracks: Track[] }>
-}
-```
+**Playback:** Host plays `spotifyUri` from position 0 for `clipDurationSeconds` (15 or 30). Server is authoritative for clip end; host player pauses on `round:clip-ended` (Phase 8b) with local timeout as safety fallback.
 
-**Existing asset:** `supabase/functions/spotify-import/index.ts` — URL parsing, embed fallback, Spotify API, preview resolution. Reuse env vars `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`.
+**Do not build gameplay around `preview_url`.** Treat it as unreliable/deprecated.
 
-**Playback:** use `previewUrl` when present; show honest “no preview” state otherwise.
+**Premium note:** Web Playback SDK typically requires Spotify Premium. UI must say so; never fake playback if SDK refuses.
 
 ---
 
@@ -357,8 +369,10 @@ interface MusicProvider {
 | Host disconnects | Promote next player or end room (Phase 7) |
 | Player mid-round disconnect | Mark disconnected; skip timers if needed |
 | Empty Spotify import | Block lobby start; show error |
-| Tracks without preview | Exclude or show “listen only” with host reads title |
-| Duplicate tracks in pool | Dedupe by track id |
+| Host not connected to Spotify | Block start or pause round with reconnect prompt (Phase 8b) |
+| Spotify playback fails | Pause round; retry / Open in Spotify — do not silently continue |
+| Tracks missing `spotifyUri` | Exclude at import; validate pool before start |
+| Duplicate tracks in pool | Dedupe by Spotify id + normalized title/artist |
 | Tie votes | Field counts as NO (consistent rule) |
 | Active player tries to vote | Rejected server-side |
 | Only one player | Allow solo dev testing; warn in UI |
@@ -381,12 +395,14 @@ See [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md) for task-level detail.
 | 5 | Sing Along |
 | 6 | Timeline |
 | 7 | Polish + reliability |
+| 8a | Spotify architecture + `/dev/spotify` test (host playback) |
+| 8b | Multiplayer Spotify integration (socket events, setup UI) |
 
 ---
 
 ## 14. Out-of-scope list
 
-- User accounts / auth
+- User accounts / auth (except **host Spotify OAuth** for playback)
 - Profiles, friends, social graph
 - Virtual currency, achievements, cosmetics
 - Progression / seasons / battle pass
@@ -406,7 +422,7 @@ See [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md) for task-level detail.
 | 1 | Exact point values per field? | 100 per field, speed bonus 0–50 by time left |
 | 2 | Max players per room? | 12 |
 | 3 | Max tracks imported? | 100 |
-| 4 | Clip duration default? | 15 seconds |
+| 4 | Clip duration default? | 30 seconds (15 optional) |
 | 5 | Keep Supabase Realtime edge functions? | No — Socket.IO only; Supabase optional for cache |
 | 6 | PWA in v1? | Phase 7 nice-to-have |
 | 7 | Reference sketch images | Apply when provided; style per section 8 |

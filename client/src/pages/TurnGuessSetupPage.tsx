@@ -118,7 +118,7 @@ export function TurnGuessSetupPage() {
             <SketchCard tiltSeed="preview-turn" className="music-preview">
               <p className="music-preview__name">{preview.name}</p>
               <p className="music-preview__meta">
-                {preview.totalTracks} tracks · {preview.playableCount} with previews
+                {preview.totalTracks} tracks · {preview.playableCount} playable on Spotify
                 {preview.skippedCount > 0 ? ` · ${preview.skippedCount} without preview` : ''}
               </p>
               <p className="music-preview__source">

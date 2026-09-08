@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { ConnectionStatus } from './components/ConnectionStatus'
+import { RoomRouteSync } from './components/RoomRouteSync'
 import { RequireName } from './components/RequireName'
 import { SketchLayout } from './components/sketch/SketchLayout'
 import { AllInSetupPage } from './pages/AllInSetupPage'
@@ -16,11 +17,13 @@ import { TimelineSetupPage } from './pages/TimelineSetupPage'
 import { TurnGuessSetupPage } from './pages/TurnGuessSetupPage'
 import { TurnsModePage } from './pages/TurnsModePage'
 import { RoomHowToPlayPage } from './pages/RoomHowToPlayPage'
+import { DevSpotifyPage } from './pages/DevSpotifyPage'
 
 export function App() {
   return (
     <SketchLayout>
       <ConnectionStatus />
+      <RoomRouteSync />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route
@@ -123,6 +126,7 @@ export function App() {
             </RequireName>
           }
         />
+        <Route path="/dev/spotify" element={<DevSpotifyPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </SketchLayout>

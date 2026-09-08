@@ -22,7 +22,10 @@ flowchart TD
   Play --> Results["/room/:code/results"]
   Results --> Home
   Results --> Lobby
+  DevSpotify["/dev/spotify — host playback test"]
 ```
+
+**Dev route (Phase 8a):** `/dev/spotify` — connect Spotify, paste track URI, play first 15s/30s. Not part of the main game flow until Phase 8b.
 
 ---
 
@@ -34,11 +37,12 @@ flowchart TD
   B --> C{Choose mode}
   C -->|All In| D[All In setup]
   C -->|Turns| E[Turns setup]
-  D --> D1[Paste Spotify link]
+  D --> D1[Paste Spotify playlist/album link]
+  D --> D1b[Connect Spotify — host only]
   D --> D2[Select guess fields]
-  D --> D3[Clip duration + rounds]
+  D --> D3[Song clip 15s / 30s + rounds]
   D --> F[Create lobby]
-  E --> E1[Paste Spotify link]
+  E --> E1[Paste Spotify link + Connect Spotify]
   E --> E2{Turn game type}
   E2 -->|Guess| E3[Guess field checklist]
   E2 -->|Sing Along| E4[Timer settings]
@@ -75,13 +79,13 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A[Round intro] --> B[Play clip + timer]
+  A[Round intro] --> B[Host plays Spotify clip + server timer]
   B --> C[Each player fills enabled fields]
   C --> D[Submit answers]
   D --> E{All submitted or time up?}
   E -->|No| C
   E -->|Yes| F[Server scores fields + speed bonus]
-  F --> G[Round results + mini leaderboard]
+  F --> G[Reveal + Open in Spotify + round leaderboard]
   G --> H{More rounds?}
   H -->|Yes| A
   H -->|No| I[Final leaderboard]

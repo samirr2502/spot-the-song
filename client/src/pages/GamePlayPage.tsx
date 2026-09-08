@@ -1,10 +1,12 @@
+import { useParams } from 'react-router-dom'
+import { RoomSessionGate } from '../components/RoomSessionGate'
 import { useRoom } from '../context/RoomContext'
 import { AllInPlayPage } from './AllInPlayPage'
 import { SingAlongPlayPage } from './SingAlongPlayPage'
 import { TimelinePlayPage } from './TimelinePlayPage'
 import { TurnGuessPlayPage } from './TurnGuessPlayPage'
 
-export function GamePlayPage() {
+function GamePlayRouter() {
   const { room } = useRoom()
 
   if (room?.settings.playMode === 'turns' && room.settings.turnGame === 'guess') {
@@ -20,4 +22,14 @@ export function GamePlayPage() {
   }
 
   return <AllInPlayPage />
+}
+
+export function GamePlayPage() {
+  const { code = '' } = useParams()
+
+  return (
+    <RoomSessionGate roomCode={code} loadingMessage="Syncing game…">
+      <GamePlayRouter />
+    </RoomSessionGate>
+  )
 }

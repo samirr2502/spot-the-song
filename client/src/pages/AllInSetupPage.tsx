@@ -85,7 +85,7 @@ export function AllInSetupPage() {
     <main className="page">
       <header className="page-header">
         <h1 className="page-title page-title--sm">All In setup</h1>
-        <p className="page-subtitle">Paste a Spotify playlist or album — or leave blank for demo tracks</p>
+        <p className="page-subtitle">Paste a Spotify playlist or album link — not a single track</p>
       </header>
 
       <SketchCard tiltSeed="all-in-setup">
@@ -117,7 +117,7 @@ export function AllInSetupPage() {
             <SketchCard tiltSeed="preview" className="music-preview">
               <p className="music-preview__name">{preview.name}</p>
               <p className="music-preview__meta">
-                {preview.totalTracks} tracks · {preview.playableCount} with previews
+                {preview.totalTracks} tracks · {preview.playableCount} playable on Spotify
                 {preview.skippedCount > 0 ? ` · ${preview.skippedCount} without preview` : ''}
               </p>
               <p className="music-preview__source">

@@ -128,12 +128,13 @@ export function isYearMatch(guess: string, year: number): boolean {
 export function matchField(
   field: 'title' | 'artist' | 'album' | 'year',
   guess: string,
-  track: { title: string; artist: string; album: string; year: number },
+  track: { title: string; artist: string; album: string; year: number | null },
 ): boolean {
   const trimmed = guess.trim()
   if (!trimmed) return false
 
   if (field === 'year') {
+    if (track.year === null) return false
     return isYearMatch(trimmed, track.year)
   }
 

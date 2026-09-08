@@ -2,8 +2,21 @@ export type GuessFieldKey = 'title' | 'artist' | 'album' | 'year'
 
 export type RoundTrackPublic = {
   id: string
+  /** @deprecated Legacy preview clip — Phase 8b replaces with host Spotify playback */
   previewUrl?: string
   artworkUrl?: string
+}
+
+export type RevealTrack = {
+  id: string
+  title: string
+  artist: string
+  album: string
+  year: number | null
+  artworkUrl?: string
+  spotifyUrl: string
+  /** @deprecated Optional legacy preview */
+  previewUrl?: string
 }
 
 export type SubmitAnswersPayload = {
@@ -34,15 +47,7 @@ export type RoundResultsPayload = {
   ratingCount?: number
   placementCorrect?: boolean
   insertIndex?: number
-  track: {
-    id: string
-    title: string
-    artist: string
-    album: string
-    year: number
-    artworkUrl?: string
-    previewUrl?: string
-  }
+  track: RevealTrack
   fieldOutcomes?: Array<{
     field: GuessFieldKey
     accepted: boolean

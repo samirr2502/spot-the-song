@@ -1,3 +1,5 @@
+import { getSpotifyCatalogUrlError, parseSpotifyCatalogUrl } from '@spot-the-song/shared'
+
 export type SpotifyResource = { type: 'album' | 'playlist'; id: string }
 
 export type ParsedTrack = {
@@ -5,6 +7,10 @@ export type ParsedTrack = {
   title: string
   artist: string
   album: string
+  spotifyUri: string
+  spotifyUrl: string
+  durationMs: number
+  /** @deprecated Optional preview fallback only — not used for gameplay. */
   previewUrl: string | null
   releaseYear: number | null
   artworkUrl?: string | null
@@ -29,19 +35,7 @@ const ENTITY_PATHS = [
 ] as const
 
 export function parseSpotifyUrl(url: string): SpotifyResource | null {
-  const trimmed = url.trim()
-
-  const webMatch = trimmed.match(/open\.spotify\.com\/(album|playlist)\/([a-zA-Z0-9]+)/)
-  if (webMatch) {
-    return { type: webMatch[1] as SpotifyResource['type'], id: webMatch[2]! }
-  }
-
-  const uriMatch = trimmed.match(/spotify:(album|playlist):([a-zA-Z0-9]+)/)
-  if (uriMatch) {
-    return { type: uriMatch[1] as SpotifyResource['type'], id: uriMatch[2]! }
-  }
-
-  return null
+  return parseSpotifyCatalogUrl(url)
 }
 
 function resolvePath(data: Record<string, unknown>, path: readonly string[]): unknown {
@@ -161,6 +155,21 @@ function getAlbumName(record: Record<string, unknown>, fallback: string): string
   return fallback
 }
 
+function buildSpotifyTrackRefs(trackId: string, uri: string): { spotifyUri: string; spotifyUrl: string } {
+  const spotifyUri = uri.startsWith('spotify:track:') ? uri : `spotify:track:${trackId}`
+  const idFromUri = spotifyUri.split(':').pop() ?? trackId
+  return {
+    spotifyUri,
+    spotifyUrl: `https://open.spotify.com/track/${idFromUri}`,
+  }
+}
+
+function readDurationMs(record: Record<string, unknown>): number {
+  if (typeof record.duration_ms === 'number') return record.duration_ms
+  if (typeof record.duration === 'number') return record.duration
+  return 0
+}
+
 function parseTrackListItem(
   track: Record<string, unknown>,
   sourceName: string,
@@ -182,6 +191,9 @@ function parseTrackListItem(
     formatArtists(track.artists) ||
     formatArtists(track.authors)
 
+  const { spotifyUri, spotifyUrl } = buildSpotifyTrackRefs(trackId, uri)
+  const durationMs = readDurationMs(track)
+
   const audioPreview = track.audioPreview as { url?: string } | undefined
   const previewUrl =
     audioPreview?.url ?? (typeof track.preview_url === 'string' ? track.preview_url : null)
@@ -191,6 +203,9 @@ function parseTrackListItem(
     title,
     artist: artist || 'Unknown Artist',
     album: getAlbumName(track, sourceName),
+    spotifyUri,
+    spotifyUrl,
+    durationMs,
     previewUrl,
     releaseYear: getReleaseYearFromRecord(track, releaseYearFallback),
   }
@@ -213,6 +228,9 @@ function parseTrackEntity(entity: Record<string, unknown>, sourceName: string): 
     formatArtists(entity.artists) ||
     formatArtists(entity.authors)
 
+  const { spotifyUri, spotifyUrl } = buildSpotifyTrackRefs(trackId, uri)
+  const durationMs = readDurationMs(entity)
+
   const audioPreview = entity.audioPreview as { url?: string } | undefined
   const previewUrl = audioPreview?.url ?? null
 
@@ -221,6 +239,9 @@ function parseTrackEntity(entity: Record<string, unknown>, sourceName: string): 
     title,
     artist: artist || 'Unknown Artist',
     album: getAlbumName(entity, sourceName),
+    spotifyUri,
+    spotifyUrl,
+    durationMs,
     previewUrl,
     releaseYear: getReleaseYearFromRecord(entity),
   }
@@ -516,7 +537,7 @@ async function mapWithConcurrency<T, R>(
 export async function importSpotifyUrl(url: string): Promise<SourceData & { resolvedTracks: ParsedTrack[] }> {
   const resource = parseSpotifyUrl(url)
   if (!resource) {
-    throw new Error('Paste a Spotify album or playlist link')
+    throw new Error(getSpotifyCatalogUrlError(url) ?? 'Paste a Spotify album or playlist link')
   }
 
   const clientId = process.env.SPOTIFY_CLIENT_ID

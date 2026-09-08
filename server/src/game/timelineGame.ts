@@ -14,7 +14,7 @@ import {
 import type { RoomRuntime } from './roomRuntime.js'
 import { buildLeaderboard } from './allInGame.js'
 import { getActivePlayerForTurn } from './turnGuessGame.js'
-import { pickRandomTrack } from './roomRuntime.js'
+import { pickRandomTrack, toRevealTrack } from './roomRuntime.js'
 
 export { getActivePlayerForTurn }
 
@@ -58,8 +58,8 @@ export function toPublicTimelineCard(
     title: track.title,
     artist: track.artist,
     album: track.album,
-    year: track.year,
-    artworkUrl: track.artworkUrl,
+    year: track.year ?? undefined,
+    artworkUrl: track.artworkUrl ?? undefined,
     previewUrl: track.previewUrl,
     isStarter: card.isStarter,
     revealed: true,
@@ -173,7 +173,7 @@ export function scoreTimelineRoundResults(
     activePlayerId,
     placementCorrect,
     insertIndex: insertIndex ?? undefined,
-    track: { ...track },
+    track: toRevealTrack(track),
     playerResults: [result],
     leaderboard: buildLeaderboard(room),
   }

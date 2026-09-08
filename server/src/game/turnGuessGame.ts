@@ -2,6 +2,7 @@ import type { GameRoom, RoundResultsPayload } from '@spot-the-song/shared'
 import type { VotePayload } from '@spot-the-song/shared'
 import { enabledFields, scoreTurnGuessRound } from '@spot-the-song/shared'
 import type { RoomRuntime } from './roomRuntime.js'
+import { toRevealTrack } from './roomRuntime.js'
 import { buildLeaderboard } from './allInGame.js'
 
 export function getActivePlayerForTurn(room: GameRoom, runtime: RoomRuntime) {
@@ -35,7 +36,7 @@ export function scoreTurnGuessRoundResults(
     roundIndex: room.currentRound.index,
     mode: 'turn-guess',
     activePlayerId,
-    track: { ...track },
+    track: toRevealTrack(track),
     fieldOutcomes,
     playerResults: [result],
     leaderboard: buildLeaderboard(room),

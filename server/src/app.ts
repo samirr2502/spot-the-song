@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import { corsOriginCallback, getClientOrigin } from './clientOrigin.js'
 import { registerMusicRoutes } from './routes/music.js'
+import { registerSpotifyAuthRoutes } from './routes/spotifyAuth.js'
 
 export function createApp(clientOrigin = getClientOrigin()) {
   const app = express()
@@ -9,6 +10,7 @@ export function createApp(clientOrigin = getClientOrigin()) {
   app.use(
     cors({
       origin: corsOriginCallback(clientOrigin),
+      credentials: true,
     }),
   )
 
@@ -23,6 +25,7 @@ export function createApp(clientOrigin = getClientOrigin()) {
   })
 
   registerMusicRoutes(app)
+  registerSpotifyAuthRoutes(app, clientOrigin)
 
   return app
 }

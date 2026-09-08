@@ -44,7 +44,7 @@ export type ChallengeTrack = {
   title: string
   artist: string
   album: string
-  year: number
+  year: number | null
   artworkUrl?: string
 }
 
