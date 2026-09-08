@@ -1,0 +1,56 @@
+import type { RoundResultsPayload, SubmitAnswersPayload } from '@spot-the-song/shared'
+import type { Track } from '@spot-the-song/shared'
+
+export type StoredAnswer = {
+  answers: SubmitAnswersPayload
+  submittedAt: number
+}
+
+export type RoomRuntime = {
+  trackPool: Track[]
+  usedTrackIds: string[]
+  currentTrack: Track | null
+  roundAnswers: Map<string, StoredAnswer>
+  roundStartedAt: number | null
+  howToPlayAcks: Set<string>
+  roundTimer: ReturnType<typeof setTimeout> | null
+  lastRoundResults: RoundResultsPayload | null
+}
+
+export function createRoomRuntime(trackPool: Track[]): RoomRuntime {
+  return {
+    trackPool,
+    usedTrackIds: [],
+    currentTrack: null,
+    roundAnswers: new Map(),
+    roundStartedAt: null,
+    howToPlayAcks: new Set(),
+    roundTimer: null,
+    lastRoundResults: null,
+  }
+}
+
+export function clearRoundTimer(runtime: RoomRuntime): void {
+  if (runtime.roundTimer) {
+    clearTimeout(runtime.roundTimer)
+    runtime.roundTimer = null
+  }
+}
+
+export function pickRandomTrack(runtime: RoomRuntime): Track | null {
+  const available = runtime.trackPool.filter((track) => !runtime.usedTrackIds.includes(track.id))
+  if (available.length === 0) return null
+
+  const track = available[Math.floor(Math.random() * available.length)]!
+  runtime.usedTrackIds.push(track.id)
+  runtime.currentTrack = track
+  return track
+}
+
+export function toPublicTrack(track: Track) {
+  return {
+    id: track.id,
+    previewUrl: track.previewUrl,
+    artworkUrl: track.artworkUrl,
+  }
+}

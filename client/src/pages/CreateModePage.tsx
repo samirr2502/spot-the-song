@@ -2,41 +2,37 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import type { PlayMode } from '@spot-the-song/shared'
 import { SketchButton, SketchCard, SketchDivider } from '../components/sketch'
-import { useRoom } from '../context/RoomContext'
 
-const MODES: Array<{ id: PlayMode; title: string; description: string }> = [
+const MODES: Array<{ id: PlayMode; title: string; description: string; setupPath: string }> = [
   {
     id: 'all-in',
     title: 'All In',
     description: 'Everyone guesses at once on their own phone.',
+    setupPath: '/create/all-in',
   },
   {
     id: 'turns',
     title: 'Turns',
     description: 'One player at a time — guess, sing, or timeline.',
+    setupPath: '/create/turns',
   },
 ]
 
 export function CreateModePage() {
   const navigate = useNavigate()
-  const { createRoom, error, busy, clearError } = useRoom()
   const [selected, setSelected] = useState<PlayMode | null>(null)
 
-  async function handleCreate() {
+  function handleContinue() {
     if (!selected) return
-    clearError()
-
-    const result = await createRoom(selected)
-    if (result) {
-      navigate(`/room/${result.code}`)
-    }
+    const mode = MODES.find((entry) => entry.id === selected)
+    if (mode) navigate(mode.setupPath)
   }
 
   return (
     <main className="page">
       <header className="page-header">
         <h1 className="page-title page-title--sm">Choose mode</h1>
-        <p className="page-subtitle">You can fine-tune settings in the next phase</p>
+        <p className="page-subtitle">Configure your game next</p>
       </header>
 
       <div className="mode-list">
@@ -58,10 +54,8 @@ export function CreateModePage() {
         })}
       </div>
 
-      {error ? <p className="form-error">{error}</p> : null}
-
-      <SketchButton fullWidth disabled={!selected || busy} onClick={handleCreate}>
-        {busy ? 'Creating…' : 'Create lobby'}
+      <SketchButton fullWidth disabled={!selected} onClick={handleContinue}>
+        Continue
       </SketchButton>
 
       <SketchDivider />

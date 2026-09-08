@@ -1,10 +1,27 @@
-import type { GameRoom, GameSettings, Player } from '@spot-the-song/shared'
-import { DEFAULT_GAME_SETTINGS } from '@spot-the-song/shared'
+import type { GameRoom, GameSettings, Player, RoundResultsPayload, SubmitAnswersPayload } from '@spot-the-song/shared'
+import { DEFAULT_GAME_SETTINGS, validateGameSettings } from '@spot-the-song/shared'
+import {
+  allConnectedSubmitted,
+  resetRoundRuntime,
+  scoreRound,
+  storeAnswer,
+  syncCurrentRoundPublic,
+  toPublicRoom,
+} from '../game/allInGame.js'
+import {
+  clearRoundTimer,
+  createRoomRuntime,
+  pickRandomTrack,
+  type RoomRuntime,
+  toPublicTrack,
+} from '../game/roomRuntime.js'
+import { SEED_TRACKS } from '../music/seedTracks.js'
 import { generateRoomCode, isValidRoomCode, normalizeRoomCode } from './code.js'
 import { generateId, generateSessionToken } from './id.js'
 
 const DISCONNECT_GRACE_MS = 30_000
 const MAX_PLAYERS = 12
+const ROUND_INTRO_MS = 2000
 
 export type SessionRecord = {
   sessionToken: string
@@ -16,18 +33,43 @@ export type RoomActionResult =
   | { ok: true; room: GameRoom; player: Player; sessionToken: string }
   | { ok: false; message: string }
 
-export type SimpleResult = { ok: true; room: GameRoom } | { ok: false; message: string }
+export type SimpleResult =
+  | { ok: true; room: GameRoom; roundResults?: RoundResultsPayload }
+  | { ok: false; message: string }
+
+export type RoomEmitHandlers = {
+  onRoomUpdated: (room: GameRoom) => void
+  onRoundResults: (roomId: string, payload: RoundResultsPayload) => void
+}
 
 export class RoomManager {
   private rooms = new Map<string, GameRoom>()
+  private runtimes = new Map<string, RoomRuntime>()
   private codeToRoomId = new Map<string, string>()
   private sessions = new Map<string, SessionRecord>()
   private disconnectTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  private emitHandlers: RoomEmitHandlers | null = null
+
+  setEmitHandlers(handlers: RoomEmitHandlers): void {
+    this.emitHandlers = handlers
+  }
 
   createRoom(playerName: string, settingsPartial?: Partial<GameSettings>): RoomActionResult {
     const trimmedName = playerName.trim()
     if (!trimmedName) {
       return { ok: false, message: 'Enter a player name first.' }
+    }
+
+    const settings: GameSettings = {
+      ...DEFAULT_GAME_SETTINGS,
+      ...settingsPartial,
+    }
+
+    if (settings.playMode === 'all-in') {
+      const validationError = validateGameSettings(settings)
+      if (validationError) {
+        return { ok: false, message: validationError }
+      }
     }
 
     const code = this.generateUniqueCode()
@@ -36,10 +78,6 @@ export class RoomManager {
     const sessionToken = generateSessionToken()
 
     const player = this.buildPlayer(playerId, trimmedName, true)
-    const settings: GameSettings = {
-      ...DEFAULT_GAME_SETTINGS,
-      ...settingsPartial,
-    }
 
     const room: GameRoom = {
       id: roomId,
@@ -53,11 +91,15 @@ export class RoomManager {
       scores: { [playerId]: 0 },
     }
 
+    const runtime = createRoomRuntime([])
+    this.loadMockTracks(runtime)
+
     this.rooms.set(roomId, room)
+    this.runtimes.set(roomId, runtime)
     this.codeToRoomId.set(code, roomId)
     this.sessions.set(sessionToken, { sessionToken, playerId, roomId })
 
-    return { ok: true, room, player, sessionToken }
+    return { ok: true, room: this.getPublicRoom(roomId)!, player, sessionToken }
   }
 
   joinRoom(codeInput: string, playerName: string): RoomActionResult {
@@ -97,7 +139,7 @@ export class RoomManager {
     room.scores[playerId] = 0
     this.sessions.set(sessionToken, { sessionToken, playerId, roomId })
 
-    return { ok: true, room, player, sessionToken }
+    return { ok: true, room: this.getPublicRoom(roomId)!, player, sessionToken }
   }
 
   reconnect(sessionToken: string): RoomActionResult {
@@ -122,7 +164,140 @@ export class RoomManager {
     player.connected = true
     player.isHost = room.hostPlayerId === player.id
 
-    return { ok: true, room, player, sessionToken }
+    return { ok: true, room: this.getPublicRoom(session.roomId)!, player, sessionToken }
+  }
+
+  startGame(roomId: string, hostPlayerId: string): SimpleResult {
+    const room = this.rooms.get(roomId)
+    if (!room) return { ok: false, message: 'Room not found.' }
+
+    if (room.hostPlayerId !== hostPlayerId) {
+      return { ok: false, message: 'Only the host can start the game.' }
+    }
+
+    if (room.status !== 'lobby') {
+      return { ok: false, message: 'Game has already started.' }
+    }
+
+    if (room.settings.playMode !== 'all-in') {
+      return { ok: false, message: 'Only All In mode is playable in this build.' }
+    }
+
+    const runtime = this.runtimes.get(roomId)
+    if (!runtime || runtime.trackPool.length < room.settings.roundCount) {
+      return {
+        ok: false,
+        message: 'Not enough tracks for this many rounds. Lower the round count.',
+      }
+    }
+
+    room.status = 'how-to-play'
+    runtime.howToPlayAcks.clear()
+
+    return { ok: true, room: this.getPublicRoom(roomId)! }
+  }
+
+  ackHowToPlay(roomId: string, playerId: string): SimpleResult {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime) return { ok: false, message: 'Room not found.' }
+
+    if (room.status !== 'how-to-play') {
+      return { ok: false, message: 'Not waiting for ready players.' }
+    }
+
+    if (!room.players.some((player) => player.id === playerId)) {
+      return { ok: false, message: 'You are not in this room.' }
+    }
+
+    runtime.howToPlayAcks.add(playerId)
+
+    const connectedIds = room.players.filter((player) => player.connected).map((player) => player.id)
+    const allReady = connectedIds.every((id) => runtime.howToPlayAcks.has(id))
+
+    if (allReady) {
+      return this.beginFirstRound(roomId)
+    }
+
+    return { ok: true, room: this.getPublicRoom(roomId)! }
+  }
+
+  submitAnswers(
+    roomId: string,
+    playerId: string,
+    answers: SubmitAnswersPayload,
+  ): SimpleResult {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime) return { ok: false, message: 'Room not found.' }
+
+    if (room.status !== 'playing' || room.currentRound?.phase !== 'answering') {
+      return { ok: false, message: 'Not accepting answers right now.' }
+    }
+
+    if (runtime.roundAnswers.has(playerId)) {
+      return { ok: false, message: 'You already submitted.' }
+    }
+
+    storeAnswer(runtime, playerId, answers, Date.now())
+    syncCurrentRoundPublic(room, runtime)
+
+    if (allConnectedSubmitted(room, runtime)) {
+      return this.finishRound(roomId)
+    }
+
+    return { ok: true, room: this.getPublicRoom(roomId)! }
+  }
+
+  continueAfterResults(roomId: string, hostPlayerId: string): SimpleResult {
+    const room = this.rooms.get(roomId)
+    if (!room) return { ok: false, message: 'Room not found.' }
+
+    if (room.hostPlayerId !== hostPlayerId) {
+      return { ok: false, message: 'Only the host can continue.' }
+    }
+
+    if (room.status !== 'round-results') {
+      return { ok: false, message: 'Not showing round results.' }
+    }
+
+    const nextIndex = (room.currentRound?.index ?? 0) + 1
+    if (nextIndex > room.settings.roundCount) {
+      room.status = 'final-results'
+      room.currentRound = null
+      return { ok: true, room: this.getPublicRoom(roomId)! }
+    }
+
+    return this.startRound(roomId, nextIndex)
+  }
+
+  playAgain(roomId: string, hostPlayerId: string): SimpleResult {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime) return { ok: false, message: 'Room not found.' }
+
+    if (room.hostPlayerId !== hostPlayerId) {
+      return { ok: false, message: 'Only the host can restart.' }
+    }
+
+    if (room.status !== 'final-results') {
+      return { ok: false, message: 'Game is not finished.' }
+    }
+
+    for (const player of room.players) {
+      room.scores[player.id] = 0
+    }
+
+    runtime.usedTrackIds = []
+    runtime.lastRoundResults = null
+    runtime.howToPlayAcks.clear()
+    resetRoundRuntime(runtime)
+    clearRoundTimer(runtime)
+
+    room.status = 'how-to-play'
+    room.currentRound = null
+
+    return { ok: true, room: this.getPublicRoom(roomId)! }
   }
 
   markDisconnected(playerId: string, roomId: string): GameRoom | null {
@@ -130,7 +305,7 @@ export class RoomManager {
     if (!room) return null
 
     const player = room.players.find((entry) => entry.id === playerId)
-    if (!player) return room
+    if (!player) return this.getPublicRoom(roomId)
 
     player.connected = false
 
@@ -140,7 +315,7 @@ export class RoomManager {
     }, DISCONNECT_GRACE_MS)
     this.disconnectTimers.set(playerId, timer)
 
-    return room
+    return this.getPublicRoom(roomId)
   }
 
   removePlayer(playerId: string, roomId: string): GameRoom | null {
@@ -152,6 +327,10 @@ export class RoomManager {
     const wasHost = room.hostPlayerId === playerId
     room.players = room.players.filter((entry) => entry.id !== playerId)
     delete room.scores[playerId]
+
+    const runtime = this.runtimes.get(roomId)
+    runtime?.roundAnswers.delete(playerId)
+    runtime?.howToPlayAcks.delete(playerId)
 
     for (const [token, session] of this.sessions.entries()) {
       if (session.playerId === playerId) {
@@ -168,47 +347,35 @@ export class RoomManager {
       this.promoteHost(room)
     }
 
-    return room
+    if (room.status === 'playing' && runtime && allConnectedSubmitted(room, runtime)) {
+      void this.finishRound(roomId)
+    }
+
+    return this.getPublicRoom(roomId)
   }
 
   leaveRoom(playerId: string, roomId: string): GameRoom | null {
     return this.removePlayer(playerId, roomId)
   }
 
-  startGame(roomId: string, hostPlayerId: string): SimpleResult {
+  getPublicRoom(roomId: string): GameRoom | null {
     const room = this.rooms.get(roomId)
-    if (!room) {
-      return { ok: false, message: 'Room not found.' }
-    }
-
-    if (room.hostPlayerId !== hostPlayerId) {
-      return { ok: false, message: 'Only the host can start the game.' }
-    }
-
-    if (room.status !== 'lobby') {
-      return { ok: false, message: 'Game has already started.' }
-    }
-
-    if (room.players.filter((player) => player.connected).length < 1) {
-      return { ok: false, message: 'Need at least one connected player.' }
-    }
-
-    room.status = 'how-to-play'
-    return { ok: true, room }
-  }
-
-  getRoom(roomId: string): GameRoom | undefined {
-    return this.rooms.get(roomId)
+    if (!room) return null
+    return toPublicRoom(room, this.runtimes.get(roomId))
   }
 
   getRoomByCode(code: string): GameRoom | undefined {
     const roomId = this.codeToRoomId.get(normalizeRoomCode(code))
     if (!roomId) return undefined
-    return this.rooms.get(roomId)
+    return this.getPublicRoom(roomId) ?? undefined
   }
 
   getSession(sessionToken: string): SessionRecord | undefined {
     return this.sessions.get(sessionToken)
+  }
+
+  getLastRoundResults(roomId: string): RoundResultsPayload | null {
+    return this.runtimes.get(roomId)?.lastRoundResults ?? null
   }
 
   clearDisconnectTimer(playerId: string): void {
@@ -217,6 +384,89 @@ export class RoomManager {
       clearTimeout(timer)
       this.disconnectTimers.delete(playerId)
     }
+  }
+
+  private beginFirstRound(roomId: string): SimpleResult {
+    return this.startRound(roomId, 1)
+  }
+
+  private startRound(roomId: string, roundIndex: number): SimpleResult {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime) return { ok: false, message: 'Room not found.' }
+
+    clearRoundTimer(runtime)
+    resetRoundRuntime(runtime)
+
+    const track = pickRandomTrack(runtime)
+    if (!track) {
+      room.status = 'final-results'
+      room.currentRound = null
+      return { ok: true, room: this.getPublicRoom(roomId)! }
+    }
+
+    const guessTimerMs = (room.settings.guessTimerSeconds ?? 30) * 1000
+    const now = Date.now()
+
+    room.status = 'playing'
+    room.currentRound = {
+      index: roundIndex,
+      phase: 'round-intro',
+      activePlayerId: null,
+      trackId: track.id,
+      endsAt: null,
+      roundTrack: toPublicTrack(track),
+      submittedPlayerIds: [],
+    }
+
+    setTimeout(() => {
+      const liveRoom = this.rooms.get(roomId)
+      const liveRuntime = this.runtimes.get(roomId)
+      if (!liveRoom || !liveRuntime || !liveRoom.currentRound) return
+      if (liveRoom.status !== 'playing') return
+
+      liveRuntime.roundStartedAt = Date.now()
+      liveRoom.currentRound.phase = 'answering'
+      liveRoom.currentRound.endsAt = Date.now() + guessTimerMs
+      syncCurrentRoundPublic(liveRoom, liveRuntime)
+
+      this.emitHandlers?.onRoomUpdated(this.getPublicRoom(roomId)!)
+
+      liveRuntime.roundTimer = setTimeout(() => {
+        void this.finishRound(roomId)
+      }, guessTimerMs)
+    }, ROUND_INTRO_MS)
+
+    return { ok: true, room: this.getPublicRoom(roomId)! }
+  }
+
+  private finishRound(roomId: string): SimpleResult {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime || !room.currentRound) {
+      return { ok: false, message: 'No active round.' }
+    }
+
+    clearRoundTimer(runtime)
+
+    const endsAt = room.currentRound.endsAt ?? Date.now()
+    room.currentRound.phase = 'reveal'
+    room.currentRound.endsAt = null
+
+    const roundResults = scoreRound(room, runtime, endsAt)
+    room.status = 'round-results'
+
+    const publicRoom = this.getPublicRoom(roomId)!
+    this.emitHandlers?.onRoomUpdated(publicRoom)
+    if (roundResults) {
+      this.emitHandlers?.onRoundResults(roomId, roundResults)
+    }
+
+    return { ok: true, room: publicRoom, roundResults: roundResults ?? undefined }
+  }
+
+  private loadMockTracks(runtime: RoomRuntime): void {
+    runtime.trackPool = SEED_TRACKS.map((track) => ({ ...track }))
   }
 
   private buildPlayer(id: string, name: string, isHost: boolean): Player {
@@ -240,10 +490,7 @@ export class RoomManager {
   }
 
   private promoteHost(room: GameRoom): void {
-    const nextHost =
-      room.players.find((player) => player.connected) ??
-      room.players[0]
-
+    const nextHost = room.players.find((player) => player.connected) ?? room.players[0]
     if (!nextHost) return
 
     room.hostPlayerId = nextHost.id
@@ -253,7 +500,12 @@ export class RoomManager {
   }
 
   private deleteRoom(room: GameRoom): void {
+    const runtime = this.runtimes.get(room.id)
+    if (runtime) {
+      clearRoundTimer(runtime)
+    }
     this.rooms.delete(room.id)
+    this.runtimes.delete(room.id)
     this.codeToRoomId.delete(room.code)
   }
 }

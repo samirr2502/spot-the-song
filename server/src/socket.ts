@@ -48,6 +48,15 @@ export function attachSocketHandlers(httpServer: HttpServer, clientOrigin: strin
     },
   })
 
+  roomManager.setEmitHandlers({
+    onRoomUpdated: (room) => emitRoomState(io, room),
+    onRoundResults: (roomId, payload) => {
+      io.to(roomId).emit('server:round-results', payload)
+      const room = roomManager.getPublicRoom(roomId)
+      if (room) emitRoomState(io, room)
+    },
+  })
+
   io.on('connection', (socket) => {
     socket.emit('server:connected', { serverTime: Date.now() })
 
@@ -56,9 +65,7 @@ export function attachSocketHandlers(httpServer: HttpServer, clientOrigin: strin
     })
 
     socket.on('client:create-room', async (payload, callback) => {
-      const result = roomManager.createRoom(payload.playerName, {
-        playMode: payload.playMode,
-      })
+      const result = roomManager.createRoom(payload.playerName, payload.settings)
 
       if (!result.ok) {
         callback(result)
@@ -102,6 +109,12 @@ export function attachSocketHandlers(httpServer: HttpServer, clientOrigin: strin
       }
 
       await attachPlayerToRoom(io, socket, result.room, result.player.id, result.sessionToken)
+
+      const lastResults = roomManager.getLastRoundResults(result.room.id)
+      if (lastResults && result.room.status === 'round-results') {
+        socket.emit('server:round-results', lastResults)
+      }
+
       callback({ ok: true })
     })
 
@@ -114,6 +127,79 @@ export function attachSocketHandlers(httpServer: HttpServer, clientOrigin: strin
       }
 
       const result = roomManager.startGame(roomId, playerId)
+      if (!result.ok) {
+        callback(result)
+        return
+      }
+
+      emitRoomState(io, result.room)
+      io.to(roomId).emit('server:phase-changed', { status: result.room.status })
+      callback({ ok: true })
+    })
+
+    socket.on('client:ack-how-to-play', (callback) => {
+      const { playerId, roomId } = socket.data
+      if (!playerId || !roomId) {
+        callback({ ok: false, message: 'You are not in a room.' })
+        return
+      }
+
+      const result = roomManager.ackHowToPlay(roomId, playerId)
+      if (!result.ok) {
+        callback(result)
+        return
+      }
+
+      emitRoomState(io, result.room)
+      if (result.room.status === 'playing') {
+        io.to(roomId).emit('server:phase-changed', { status: result.room.status })
+      }
+      callback({ ok: true })
+    })
+
+    socket.on('client:submit-answers', (payload, callback) => {
+      const { playerId, roomId } = socket.data
+      if (!playerId || !roomId) {
+        callback({ ok: false, message: 'You are not in a room.' })
+        return
+      }
+
+      const result = roomManager.submitAnswers(roomId, playerId, payload)
+      if (!result.ok) {
+        callback(result)
+        return
+      }
+
+      emitRoomState(io, result.room)
+      callback({ ok: true })
+    })
+
+    socket.on('client:continue-after-results', (callback) => {
+      const { playerId, roomId } = socket.data
+      if (!playerId || !roomId) {
+        callback({ ok: false, message: 'You are not in a room.' })
+        return
+      }
+
+      const result = roomManager.continueAfterResults(roomId, playerId)
+      if (!result.ok) {
+        callback(result)
+        return
+      }
+
+      emitRoomState(io, result.room)
+      io.to(roomId).emit('server:phase-changed', { status: result.room.status })
+      callback({ ok: true })
+    })
+
+    socket.on('client:play-again', (callback) => {
+      const { playerId, roomId } = socket.data
+      if (!playerId || !roomId) {
+        callback({ ok: false, message: 'You are not in a room.' })
+        return
+      }
+
+      const result = roomManager.playAgain(roomId, playerId)
       if (!result.ok) {
         callback(result)
         return

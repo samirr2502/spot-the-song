@@ -44,14 +44,13 @@ spot-the-song/
 
 ## Current phase
 
-**Phase 1 — Rooms + Lobby** ✓
+**Phase 2 — All In Guess MVP** ✓
 
-- Create/join rooms with 6-character codes
-- Live lobby with QR code and player list
-- Host-only start → how-to-play screen
-- Session reconnect after page refresh
+- Full All In game loop with mock tracks
+- Field-by-field scoring + speed bonus
+- Round results, multi-round flow, final leaderboard
 
-Next: **Phase 2 — All In Guess MVP**
+Next: **Phase 3 — Spotify provider**
 
 ## Spotify credentials
 

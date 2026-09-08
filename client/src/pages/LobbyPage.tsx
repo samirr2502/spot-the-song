@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { SketchAvatar, SketchButton, SketchCard, SketchDivider } from '../components/sketch'
 import { useRoom } from '../context/RoomContext'
 import { buildJoinUrl } from '../lib/session'
+import { roomPathForStatus } from '../hooks/useRoomNavigation'
 
 export function LobbyPage() {
   const navigate = useNavigate()
@@ -15,10 +16,11 @@ export function LobbyPage() {
   const inCorrectRoom = room?.code === normalizedCode && session?.roomCode === normalizedCode
 
   useEffect(() => {
-    if (room?.status === 'how-to-play' && room.code === normalizedCode) {
-      navigate(`/room/${normalizedCode}/how-to-play`)
+    if (!room || room.code !== normalizedCode) return
+    if (room.status !== 'lobby') {
+      navigate(roomPathForStatus(room.code, room.status), { replace: true })
     }
-  }, [room?.status, room?.code, normalizedCode, navigate])
+  }, [room, normalizedCode, navigate])
 
   async function handleStart() {
     clearError()

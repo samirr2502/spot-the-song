@@ -2,7 +2,10 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { ConnectionStatus } from './components/ConnectionStatus'
 import { RequireName } from './components/RequireName'
 import { SketchLayout } from './components/sketch/SketchLayout'
+import { AllInSetupPage } from './pages/AllInSetupPage'
+import { AllInPlayPage } from './pages/AllInPlayPage'
 import { CreateModePage } from './pages/CreateModePage'
+import { FinalResultsPage } from './pages/FinalResultsPage'
 import { HomePage } from './pages/HomePage'
 import { JoinPage } from './pages/JoinPage'
 import { LandingPage } from './pages/LandingPage'
@@ -42,7 +45,11 @@ export function App() {
         />
         <Route
           path="/create/all-in"
-          element={<PlaceholderPage title="All In setup" phase="Phase 2" />}
+          element={
+            <RequireName>
+              <AllInSetupPage />
+            </RequireName>
+          }
         />
         <Route
           path="/create/turns"
@@ -57,6 +64,22 @@ export function App() {
           element={
             <RequireName>
               <LobbyPage />
+            </RequireName>
+          }
+        />
+        <Route
+          path="/room/:code/play"
+          element={
+            <RequireName>
+              <AllInPlayPage />
+            </RequireName>
+          }
+        />
+        <Route
+          path="/room/:code/results"
+          element={
+            <RequireName>
+              <FinalResultsPage />
             </RequireName>
           }
         />

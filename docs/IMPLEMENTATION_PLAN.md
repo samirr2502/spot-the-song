@@ -78,17 +78,17 @@ _Completed 2026-09-07._
 
 ### Tasks
 
-- [ ] All In setup screen (guess checklist, rounds, clip duration)
-- [ ] Validate at least one guess field selected
-- [ ] `MockMusicProvider` + seed tracks
-- [ ] Server random track selection per round
-- [ ] Round timer (server-authoritative)
-- [ ] Per-field answer inputs + submit
-- [ ] Port normalized matching to `shared/src/scoring/matching.ts`
-- [ ] Field-by-field scoring + speed bonus
-- [ ] Round results UI + mini leaderboard
-- [ ] Multi-round loop + final results screen
-- [ ] `client:submit-answers` / `server:round-results`
+- [x] All In setup screen (guess checklist, rounds, clip duration)
+- [x] Validate at least one guess field selected
+- [x] `MockMusicProvider` + seed tracks
+- [x] Server random track selection per round
+- [x] Round timer (server-authoritative)
+- [x] Per-field answer inputs + submit
+- [x] Port normalized matching to `shared/src/scoring/matching.ts`
+- [x] Field-by-field scoring + speed bonus
+- [x] Round results UI + mini leaderboard
+- [x] Multi-round loop + final results screen
+- [x] `client:submit-answers` / `server:round-results`
 
 ### Deliverable
 
@@ -96,7 +96,12 @@ Complete multiplayer All In game start to finish with mock tracks.
 
 ### Phase 2 completion notes
 
-_(pending)_
+_Completed 2026-09-07._
+
+- All In setup at `/create/all-in` with field checklist validation.
+- `MockMusicProvider` loads 12 seed tracks; server picks random tracks per round.
+- Full loop: how-to-play ready → rounds → results → final leaderboard → play again.
+- Scoring in `shared/src/scoring/` (100 pts/field, up to 50 speed bonus).
 
 ---
 

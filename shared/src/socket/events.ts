@@ -1,4 +1,5 @@
-import type { GameRoom } from '../types/game.js'
+import type { GameSettings, GameRoom } from '../types/game.js'
+import type { RoundResultsPayload, SubmitAnswersPayload } from '../types/round.js'
 
 export type RoomSessionPayload = {
   playerId: string
@@ -22,13 +23,14 @@ export type ServerToClientEvents = {
   'server:player-joined': (payload: { playerId: string }) => void
   'server:player-left': (payload: { playerId: string }) => void
   'server:phase-changed': (payload: { status: GameRoom['status'] }) => void
+  'server:round-results': (payload: RoundResultsPayload) => void
   'server:error': (payload: { message: string }) => void
 }
 
 export type ClientToServerEvents = {
   'client:ping': (callback: (payload: { serverTime: number }) => void) => void
   'client:create-room': (
-    payload: { playerName: string; playMode?: GameRoom['settings']['playMode'] },
+    payload: { playerName: string; settings?: GameSettings },
     callback: (result: CreateRoomResult) => void,
   ) => void
   'client:join-room': (
@@ -40,6 +42,13 @@ export type ClientToServerEvents = {
     callback: (result: ActionResult) => void,
   ) => void
   'client:start-game': (callback: (result: ActionResult) => void) => void
+  'client:ack-how-to-play': (callback: (result: ActionResult) => void) => void
+  'client:submit-answers': (
+    payload: SubmitAnswersPayload,
+    callback: (result: ActionResult) => void,
+  ) => void
+  'client:continue-after-results': (callback: (result: ActionResult) => void) => void
+  'client:play-again': (callback: (result: ActionResult) => void) => void
   'client:leave-room': (callback?: (result: ActionResult) => void) => void
 }
 

@@ -1,5 +1,1 @@
-export type RoomSession = {
-  playerId: string
-  sessionToken: string
-  roomCode: string
-}
+export type { RoomSessionPayload as RoomSession } from '../socket/events.js'

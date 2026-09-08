@@ -1,39 +1,77 @@
-import { Link, useParams } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { SketchButton, SketchCard } from '../components/sketch'
 import { useRoom } from '../context/RoomContext'
+import { useRoomStatusRedirect, roomPathForStatus } from '../hooks/useRoomNavigation'
 
 export function RoomHowToPlayPage() {
+  const navigate = useNavigate()
   const { code = '' } = useParams()
-  const { room, isHost } = useRoom()
-  const normalizedCode = code.toUpperCase()
+  const { room, session, busy, error, ackHowToPlay, clearError } = useRoom()
 
-  const modeLabel =
-    room?.settings.playMode === 'all-in'
-      ? 'All In — everyone answers at once on their phone.'
-      : `Turns — ${room?.settings.turnGame ?? 'guess / sing / timeline'} (full setup in later phases).`
+  useRoomStatusRedirect(code, ['how-to-play'])
+
+  const normalizedCode = code.toUpperCase()
+  const inRoom = room?.code === normalizedCode && session?.roomCode === normalizedCode
+  const readyIds = room?.readyPlayerIds ?? []
+  const connectedCount = room?.players.filter((player) => player.connected).length ?? 0
+  const isReady = !!session && readyIds.includes(session.playerId)
+
+  useEffect(() => {
+    if (room?.status === 'playing' && room.code === normalizedCode) {
+      navigate(`/room/${normalizedCode}/play`, { replace: true })
+    }
+  }, [room?.status, room?.code, normalizedCode, navigate])
+
+  async function handleReady() {
+    clearError()
+    await ackHowToPlay()
+  }
+
+  if (!inRoom || !room) {
+    return (
+      <main className="page">
+        <SketchCard tiltSeed="how-to-loading">
+          <p>Loading…</p>
+        </SketchCard>
+      </main>
+    )
+  }
 
   return (
     <main className="page">
       <SketchCard tiltSeed="how-to-play">
-        <h1 className="page-title page-title--sm">How to play</h1>
+        <h1 className="page-title page-title--sm">How to play — All In</h1>
         <p className="page-subtitle">Room {normalizedCode}</p>
 
         <ul className="how-to-list">
-          <li>Listen to the song clip when a round starts.</li>
-          <li>{modeLabel}</li>
-          <li>Score points for correct answers — fastest wins bonuses in All In.</li>
-          <li>Most points after all rounds wins the party.</li>
+          <li>Listen to the clip when each round starts.</li>
+          <li>Fill in every field the host enabled (title, artist, album, year).</li>
+          <li>Submit before time runs out — faster answers earn a speed bonus.</li>
+          <li>Most total points after all rounds wins.</li>
         </ul>
 
-        <p className="placeholder-note">
-          Gameplay rounds arrive in Phase 2+. The lobby and start flow are live.
+        <p className="lobby-players__status">
+          Ready: {readyIds.length} / {connectedCount}
         </p>
       </SketchCard>
 
-      {isHost ? (
-        <SketchButton fullWidth disabled>
-          Begin round (Phase 2)
+      {error ? <p className="form-error">{error}</p> : null}
+
+      {!isReady ? (
+        <SketchButton fullWidth disabled={busy} onClick={handleReady}>
+          {busy ? '…' : "I'm ready"}
         </SketchButton>
+      ) : (
+        <SketchCard tiltSeed="ready-wait" className="lobby-wait-card">
+          <p>You're ready — waiting for everyone else…</p>
+        </SketchCard>
+      )}
+
+      {room.status !== 'how-to-play' ? (
+        <Link to={roomPathForStatus(room.code, room.status)}>
+          <SketchButton fullWidth>Go to game</SketchButton>
+        </Link>
       ) : null}
 
       <Link to={`/room/${normalizedCode}`}>

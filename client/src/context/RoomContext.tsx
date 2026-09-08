@@ -7,7 +7,13 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { GameRoom, PlayMode, RoomSessionPayload } from '@spot-the-song/shared'
+import type {
+  GameRoom,
+  GameSettings,
+  RoomSessionPayload,
+  RoundResultsPayload,
+  SubmitAnswersPayload,
+} from '@spot-the-song/shared'
 import {
   clearRoomSession,
   getPlayerName,
@@ -19,13 +25,18 @@ import { useSocketContext } from './SocketContext'
 type RoomContextValue = {
   room: GameRoom | null
   session: RoomSessionPayload | null
+  roundResults: RoundResultsPayload | null
   isHost: boolean
   error: string | null
   busy: boolean
-  createRoom: (playMode: PlayMode) => Promise<{ code: string } | null>
+  createRoom: (settings: GameSettings) => Promise<{ code: string } | null>
   joinRoom: (code: string, playerName: string) => Promise<{ code: string } | null>
   leaveRoom: () => Promise<void>
   startGame: () => Promise<boolean>
+  ackHowToPlay: () => Promise<boolean>
+  submitAnswers: (answers: SubmitAnswersPayload) => Promise<boolean>
+  continueAfterResults: () => Promise<boolean>
+  playAgain: () => Promise<boolean>
   clearError: () => void
 }
 
@@ -35,6 +46,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   const { socket, connectionState } = useSocketContext()
   const [room, setRoom] = useState<GameRoom | null>(null)
   const [session, setSession] = useState<RoomSessionPayload | null>(() => getRoomSession())
+  const [roundResults, setRoundResults] = useState<RoundResultsPayload | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [reconnectAttempted, setReconnectAttempted] = useState(false)
@@ -44,6 +56,13 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
     const onRoomState = (nextRoom: GameRoom) => {
       setRoom(nextRoom)
+      if (nextRoom.status !== 'round-results') {
+        setRoundResults(null)
+      }
+    }
+
+    const onRoundResults = (payload: RoundResultsPayload) => {
+      setRoundResults(payload)
     }
 
     const onError = ({ message }: { message: string }) => {
@@ -51,10 +70,12 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     }
 
     socket.on('server:room-state', onRoomState)
+    socket.on('server:round-results', onRoundResults)
     socket.on('server:error', onError)
 
     return () => {
       socket.off('server:room-state', onRoomState)
+      socket.off('server:round-results', onRoundResults)
       socket.off('server:error', onError)
     }
   }, [socket])
@@ -90,7 +111,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const createRoom = useCallback(
-    async (playMode: PlayMode): Promise<{ code: string } | null> => {
+    async (settings: GameSettings): Promise<{ code: string } | null> => {
       if (!socket) return null
 
       const name = getPlayerName()
@@ -103,7 +124,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       setError(null)
 
       return new Promise((resolve) => {
-        socket.emit('client:create-room', { playerName: name, playMode }, (result) => {
+        socket.emit('client:create-room', { playerName: name, settings }, (result) => {
           setBusy(false)
 
           if (!result.ok) {
@@ -168,6 +189,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     clearRoomSession()
     setSession(null)
     setRoom(null)
+    setRoundResults(null)
     setBusy(false)
   }, [socket])
 
@@ -192,6 +214,95 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     })
   }, [socket])
 
+  const ackHowToPlay = useCallback(async (): Promise<boolean> => {
+    if (!socket) return false
+
+    setBusy(true)
+    setError(null)
+
+    return new Promise((resolve) => {
+      socket.emit('client:ack-how-to-play', (result) => {
+        setBusy(false)
+
+        if (!result.ok) {
+          setError(result.message)
+          resolve(false)
+          return
+        }
+
+        resolve(true)
+      })
+    })
+  }, [socket])
+
+  const submitAnswers = useCallback(
+    async (answers: SubmitAnswersPayload): Promise<boolean> => {
+      if (!socket) return false
+
+      setBusy(true)
+      setError(null)
+
+      return new Promise((resolve) => {
+        socket.emit('client:submit-answers', answers, (result) => {
+          setBusy(false)
+
+          if (!result.ok) {
+            setError(result.message)
+            resolve(false)
+            return
+          }
+
+          resolve(true)
+        })
+      })
+    },
+    [socket],
+  )
+
+  const continueAfterResults = useCallback(async (): Promise<boolean> => {
+    if (!socket) return false
+
+    setBusy(true)
+    setError(null)
+
+    return new Promise((resolve) => {
+      socket.emit('client:continue-after-results', (result) => {
+        setBusy(false)
+
+        if (!result.ok) {
+          setError(result.message)
+          resolve(false)
+          return
+        }
+
+        setRoundResults(null)
+        resolve(true)
+      })
+    })
+  }, [socket])
+
+  const playAgain = useCallback(async (): Promise<boolean> => {
+    if (!socket) return false
+
+    setBusy(true)
+    setError(null)
+
+    return new Promise((resolve) => {
+      socket.emit('client:play-again', (result) => {
+        setBusy(false)
+
+        if (!result.ok) {
+          setError(result.message)
+          resolve(false)
+          return
+        }
+
+        setRoundResults(null)
+        resolve(true)
+      })
+    })
+  }, [socket])
+
   const isHost = useMemo(() => {
     if (!room || !session) return false
     return room.hostPlayerId === session.playerId
@@ -201,6 +312,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     () => ({
       room,
       session,
+      roundResults,
       isHost,
       error,
       busy,
@@ -208,9 +320,28 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       joinRoom,
       leaveRoom,
       startGame,
+      ackHowToPlay,
+      submitAnswers,
+      continueAfterResults,
+      playAgain,
       clearError: () => setError(null),
     }),
-    [room, session, isHost, error, busy, createRoom, joinRoom, leaveRoom, startGame],
+    [
+      room,
+      session,
+      roundResults,
+      isHost,
+      error,
+      busy,
+      createRoom,
+      joinRoom,
+      leaveRoom,
+      startGame,
+      ackHowToPlay,
+      submitAnswers,
+      continueAfterResults,
+      playAgain,
+    ],
   )
 
   return <RoomContext.Provider value={value}>{children}</RoomContext.Provider>

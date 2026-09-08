@@ -1,4 +1,5 @@
 import type { Player } from './player.js'
+import type { RoundTrackPublic } from './round.js'
 import type { Track } from './track.js'
 
 export type PlayMode = 'all-in' | 'turns'
@@ -44,6 +45,8 @@ export type CurrentRound = {
   activePlayerId: string | null
   trackId: string | null
   endsAt: number | null
+  roundTrack?: RoundTrackPublic | null
+  submittedPlayerIds?: string[]
 }
 
 export type GameRoom = {
@@ -53,9 +56,12 @@ export type GameRoom = {
   players: Player[]
   status: RoomStatus
   settings: GameSettings
+  /** Empty on client during play — use trackPoolSize instead. */
   trackPool: Track[]
+  trackPoolSize?: number
   currentRound: CurrentRound | null
   scores: Record<string, number>
+  readyPlayerIds?: string[]
 }
 
 export const DEFAULT_GUESS_FIELDS: GuessFields = {
