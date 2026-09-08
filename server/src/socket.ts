@@ -65,7 +65,11 @@ export function attachSocketHandlers(httpServer: HttpServer, clientOrigin: strin
     })
 
     socket.on('client:create-room', async (payload, callback) => {
-      const result = roomManager.createRoom(payload.playerName, payload.settings)
+      const result = await roomManager.createRoom(
+        payload.playerName,
+        payload.settings,
+        payload.spotifyUrl,
+      )
 
       if (!result.ok) {
         callback(result)

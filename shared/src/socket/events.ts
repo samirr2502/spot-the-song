@@ -30,7 +30,7 @@ export type ServerToClientEvents = {
 export type ClientToServerEvents = {
   'client:ping': (callback: (payload: { serverTime: number }) => void) => void
   'client:create-room': (
-    payload: { playerName: string; settings?: GameSettings },
+    payload: { playerName: string; settings?: GameSettings; spotifyUrl?: string },
     callback: (result: CreateRoomResult) => void,
   ) => void
   'client:join-room': (

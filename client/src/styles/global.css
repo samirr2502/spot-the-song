@@ -197,6 +197,28 @@ a {
   color: var(--ink-muted);
 }
 
+.music-preview {
+  padding: var(--space-md);
+}
+
+.music-preview__name {
+  margin: 0 0 var(--space-xs);
+  font-family: var(--font-hand);
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.music-preview__meta,
+.music-preview__source {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 0.95rem;
+}
+
+.music-preview__source {
+  margin-top: var(--space-xs);
+}
+
 .setup-form {
   display: flex;
   flex-direction: column;

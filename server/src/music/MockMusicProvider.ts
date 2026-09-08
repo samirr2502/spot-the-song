@@ -1,10 +1,19 @@
-import type { Track } from '@spot-the-song/shared'
-import type { MusicProvider } from './MusicProvider.js'
+import type { MusicImportResult, MusicProvider } from './types.js'
+import { dedupeTracks } from './types.js'
 import { SEED_TRACKS } from './seedTracks.js'
 
 export class MockMusicProvider implements MusicProvider {
-  async loadTracks(): Promise<Track[]> {
-    return SEED_TRACKS.map((track) => ({ ...track }))
+  async importFromUrl(_url: string): Promise<MusicImportResult> {
+    throw new Error('Paste a Spotify link or leave empty to use the demo playlist.')
+  }
+
+  async loadDemoTracks(): Promise<MusicImportResult> {
+    return {
+      name: 'Demo Playlist',
+      tracks: dedupeTracks(SEED_TRACKS.map((track) => ({ ...track }))),
+      skippedCount: SEED_TRACKS.filter((track) => !track.previewUrl).length,
+      source: 'mock',
+    }
   }
 }
 

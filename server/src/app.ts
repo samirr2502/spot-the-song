@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import { registerMusicRoutes } from './routes/music.js'
 
 export function createApp() {
   const app = express()
@@ -10,6 +11,8 @@ export function createApp() {
     }),
   )
 
+  app.use(express.json())
+
   app.get('/health', (_req, res) => {
     res.json({
       ok: true,
@@ -17,6 +20,8 @@ export function createApp() {
       timestamp: Date.now(),
     })
   })
+
+  registerMusicRoutes(app)
 
   return app
 }

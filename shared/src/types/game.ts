@@ -59,6 +59,8 @@ export type GameRoom = {
   /** Empty on client during play — use trackPoolSize instead. */
   trackPool: Track[]
   trackPoolSize?: number
+  playlistName?: string
+  playableTrackCount?: number
   currentRound: CurrentRound | null
   scores: Record<string, number>
   readyPlayerIds?: string[]

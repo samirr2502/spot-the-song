@@ -29,7 +29,7 @@ type RoomContextValue = {
   isHost: boolean
   error: string | null
   busy: boolean
-  createRoom: (settings: GameSettings) => Promise<{ code: string } | null>
+  createRoom: (settings: GameSettings, spotifyUrl?: string) => Promise<{ code: string } | null>
   joinRoom: (code: string, playerName: string) => Promise<{ code: string } | null>
   leaveRoom: () => Promise<void>
   startGame: () => Promise<boolean>
@@ -111,7 +111,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const createRoom = useCallback(
-    async (settings: GameSettings): Promise<{ code: string } | null> => {
+    async (settings: GameSettings, spotifyUrl?: string): Promise<{ code: string } | null> => {
       if (!socket) return null
 
       const name = getPlayerName()
@@ -124,7 +124,10 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       setError(null)
 
       return new Promise((resolve) => {
-        socket.emit('client:create-room', { playerName: name, settings }, (result) => {
+        socket.emit(
+          'client:create-room',
+          { playerName: name, settings, spotifyUrl: spotifyUrl?.trim() || undefined },
+          (result) => {
           setBusy(false)
 
           if (!result.ok) {

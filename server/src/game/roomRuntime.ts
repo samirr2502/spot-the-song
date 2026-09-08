@@ -15,6 +15,8 @@ export type RoomRuntime = {
   howToPlayAcks: Set<string>
   roundTimer: ReturnType<typeof setTimeout> | null
   lastRoundResults: RoundResultsPayload | null
+  playlistName?: string
+  musicSource?: 'spotify' | 'mock'
 }
 
 export function createRoomRuntime(trackPool: Track[]): RoomRuntime {

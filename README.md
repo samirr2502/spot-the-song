@@ -44,13 +44,13 @@ spot-the-song/
 
 ## Current phase
 
-**Phase 2 — All In Guess MVP** ✓
+**Phase 3 — Spotify provider** ✓
 
-- Full All In game loop with mock tracks
-- Field-by-field scoring + speed bonus
-- Round results, multi-round flow, final leaderboard
+- Paste Spotify playlist/album links in All In setup
+- Preview track counts before creating lobby
+- Demo playlist fallback when link is empty
 
-Next: **Phase 3 — Spotify provider**
+Next: **Phase 4 — Turn-based Guess**
 
 ## Spotify credentials
 

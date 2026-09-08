@@ -15,7 +15,7 @@ import {
   type RoomRuntime,
   toPublicTrack,
 } from '../game/roomRuntime.js'
-import { SEED_TRACKS } from '../music/seedTracks.js'
+import { resolveMusicImport } from '../music/resolveMusicImport.js'
 import { generateRoomCode, isValidRoomCode, normalizeRoomCode } from './code.js'
 import { generateId, generateSessionToken } from './id.js'
 
@@ -54,7 +54,11 @@ export class RoomManager {
     this.emitHandlers = handlers
   }
 
-  createRoom(playerName: string, settingsPartial?: Partial<GameSettings>): RoomActionResult {
+  async createRoom(
+    playerName: string,
+    settingsPartial?: Partial<GameSettings>,
+    spotifyUrl?: string,
+  ): Promise<RoomActionResult> {
     const trimmedName = playerName.trim()
     if (!trimmedName) {
       return { ok: false, message: 'Enter a player name first.' }
@@ -69,6 +73,27 @@ export class RoomManager {
       const validationError = validateGameSettings(settings)
       if (validationError) {
         return { ok: false, message: validationError }
+      }
+    }
+
+    let musicImport
+    try {
+      musicImport = await resolveMusicImport(spotifyUrl)
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : 'Failed to load music.',
+      }
+    }
+
+    if (musicImport.tracks.length === 0) {
+      return { ok: false, message: 'No tracks available for this game.' }
+    }
+
+    if (musicImport.tracks.length < settings.roundCount) {
+      return {
+        ok: false,
+        message: `Only ${musicImport.tracks.length} tracks available — lower the round count.`,
       }
     }
 
@@ -91,8 +116,9 @@ export class RoomManager {
       scores: { [playerId]: 0 },
     }
 
-    const runtime = createRoomRuntime([])
-    this.loadMockTracks(runtime)
+    const runtime = createRoomRuntime(musicImport.tracks)
+    runtime.playlistName = musicImport.name
+    runtime.musicSource = musicImport.source
 
     this.rooms.set(roomId, room)
     this.runtimes.set(roomId, runtime)
@@ -463,10 +489,6 @@ export class RoomManager {
     }
 
     return { ok: true, room: publicRoom, roundResults: roundResults ?? undefined }
-  }
-
-  private loadMockTracks(runtime: RoomRuntime): void {
-    runtime.trackPool = SEED_TRACKS.map((track) => ({ ...track }))
   }
 
   private buildPlayer(id: string, name: string, isHost: boolean): Player {

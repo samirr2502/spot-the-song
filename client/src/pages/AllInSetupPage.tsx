@@ -9,16 +9,21 @@ import {
 } from '@spot-the-song/shared'
 import { SketchButton, SketchCard, SketchCheckbox, SketchDivider, SketchInput } from '../components/sketch'
 import { useRoom } from '../context/RoomContext'
+import { previewMusicLink, type MusicPreviewResult } from '../lib/musicApi'
 
 export function AllInSetupPage() {
   const navigate = useNavigate()
   const { createRoom, error, busy, clearError } = useRoom()
 
+  const [spotifyUrl, setSpotifyUrl] = useState('')
   const [guessFields, setGuessFields] = useState<GuessFields>({ ...DEFAULT_GUESS_FIELDS })
   const [roundCount, setRoundCount] = useState(String(DEFAULT_GAME_SETTINGS.roundCount))
   const [clipDuration, setClipDuration] = useState(String(DEFAULT_GAME_SETTINGS.clipDurationSeconds))
   const [guessTimer, setGuessTimer] = useState(String(DEFAULT_GAME_SETTINGS.guessTimerSeconds ?? 30))
   const [localError, setLocalError] = useState<string | null>(null)
+  const [preview, setPreview] = useState<MusicPreviewResult | null>(null)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   const settings: GameSettings = useMemo(
     () => ({
@@ -35,6 +40,27 @@ export function AllInSetupPage() {
     setGuessFields((current) => ({ ...current, [field]: !current[field] }))
   }
 
+  async function handlePreview() {
+    setPreviewError(null)
+    setPreview(null)
+    setPreviewLoading(true)
+
+    try {
+      const result = await previewMusicLink(spotifyUrl)
+      setPreview(result)
+
+      if (result.totalTracks < settings.roundCount) {
+        setPreviewError(
+          `Only ${result.totalTracks} tracks — lower rounds to ${result.totalTracks} or fewer.`,
+        )
+      }
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : 'Could not load link')
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     clearError()
@@ -45,7 +71,7 @@ export function AllInSetupPage() {
       return
     }
 
-    const result = await createRoom(settings)
+    const result = await createRoom(settings, spotifyUrl.trim() || undefined)
     if (result) {
       navigate(`/room/${result.code}`)
     }
@@ -57,11 +83,51 @@ export function AllInSetupPage() {
     <main className="page">
       <header className="page-header">
         <h1 className="page-title page-title--sm">All In setup</h1>
-        <p className="page-subtitle">Mock playlist for now — Spotify in Phase 3</p>
+        <p className="page-subtitle">Paste a Spotify playlist or album — or leave blank for demo tracks</p>
       </header>
 
       <SketchCard tiltSeed="all-in-setup">
         <form className="setup-form" onSubmit={handleSubmit}>
+          <SketchInput
+            label="Spotify playlist or album link"
+            name="spotifyUrl"
+            placeholder="https://open.spotify.com/playlist/…"
+            value={spotifyUrl}
+            onChange={(event) => {
+              setSpotifyUrl(event.target.value)
+              setPreview(null)
+              setPreviewError(null)
+            }}
+            autoComplete="off"
+          />
+
+          <SketchButton
+            type="button"
+            variant="ghost"
+            fullWidth
+            disabled={previewLoading || busy}
+            onClick={handlePreview}
+          >
+            {previewLoading ? 'Loading…' : spotifyUrl.trim() ? 'Check link' : 'Preview demo playlist'}
+          </SketchButton>
+
+          {preview ? (
+            <SketchCard tiltSeed="preview" className="music-preview">
+              <p className="music-preview__name">{preview.name}</p>
+              <p className="music-preview__meta">
+                {preview.totalTracks} tracks · {preview.playableCount} with previews
+                {preview.skippedCount > 0 ? ` · ${preview.skippedCount} without preview` : ''}
+              </p>
+              <p className="music-preview__source">
+                {preview.source === 'spotify' ? 'Spotify' : 'Demo playlist'}
+              </p>
+            </SketchCard>
+          ) : null}
+
+          {previewError ? <p className="form-error">{previewError}</p> : null}
+
+          <SketchDivider label="game settings" />
+
           <fieldset className="setup-fieldset">
             <legend className="setup-fieldset__legend">Players must guess</legend>
             <div className="setup-checks">
@@ -120,8 +186,8 @@ export function AllInSetupPage() {
 
           {displayError ? <p className="form-error">{displayError}</p> : null}
 
-          <SketchButton type="submit" fullWidth disabled={busy}>
-            {busy ? 'Creating…' : 'Create lobby'}
+          <SketchButton type="submit" fullWidth disabled={busy || previewLoading}>
+            {busy ? 'Loading music & creating…' : 'Create lobby'}
           </SketchButton>
         </form>
       </SketchCard>

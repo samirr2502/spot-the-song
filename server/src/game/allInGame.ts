@@ -93,6 +93,8 @@ export function toPublicRoom(room: GameRoom, runtime: RoomRuntime | undefined): 
     scores: { ...room.scores },
     trackPool: [],
     trackPoolSize: runtime?.trackPool.length ?? room.trackPool.length,
+    playlistName: runtime?.playlistName,
+    playableTrackCount: runtime?.trackPool.filter((track) => track.previewUrl).length,
     currentRound: room.currentRound ? { ...room.currentRound } : null,
     readyPlayerIds: runtime ? Array.from(runtime.howToPlayAcks) : room.readyPlayerIds,
   }

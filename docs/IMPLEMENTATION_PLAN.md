@@ -111,13 +111,13 @@ _Completed 2026-09-07._
 
 ### Tasks
 
-- [ ] `MusicProvider` interface on server
-- [ ] Port `spotify-import` logic to `SpotifyProvider`
-- [ ] Parse playlist/album links in setup flow
-- [ ] Populate normalized `Track[]` in room
-- [ ] Handle missing previews gracefully
-- [ ] Loading + error UI on setup
-- [ ] Game logic unchanged when provider swaps
+- [x] `MusicProvider` interface on server
+- [x] Port `spotify-import` logic to `SpotifyProvider`
+- [x] Parse playlist/album links in setup flow
+- [x] Populate normalized `Track[]` in room
+- [x] Handle missing previews gracefully
+- [x] Loading + error UI on setup
+- [x] Game logic unchanged when provider swaps
 
 ### Deliverable
 
@@ -125,7 +125,13 @@ Host creates game from Spotify playlist/album link.
 
 ### Phase 3 completion notes
 
-_(pending)_
+_Completed 2026-09-07._
+
+- `SpotifyProvider` ports logic from `supabase/functions/spotify-import/` to `server/src/music/`.
+- Setup screen accepts Spotify links with preview via `POST /api/music/preview`.
+- Tracks without previews are kept for guessing; clip UI shows honest fallback.
+- Empty link uses demo seed tracks (dev fallback).
+- Set `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` in `server/.env` for album links and richer preview resolution.
 
 ---
 

@@ -61,7 +61,9 @@ export function LobbyPage() {
         <p className="page-eyebrow">lobby</p>
         <h1 className="page-title page-title--sm">Room {room.code}</h1>
         <p className="page-subtitle">
-          {room.settings.playMode === 'all-in' ? 'All In mode' : 'Turns mode'} · waiting for host
+          {room.playlistName ? `"${room.playlistName}" · ` : ''}
+          {room.settings.playMode === 'all-in' ? 'All In mode' : 'Turns mode'}
+          {room.trackPoolSize ? ` · ${room.trackPoolSize} tracks` : ''}
         </p>
       </header>
 
