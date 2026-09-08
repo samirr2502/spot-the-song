@@ -1,24 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  SketchButton,
-  SketchCard,
-  SketchCheckbox,
-  SketchDivider,
-  SketchInput,
-  SketchModal,
-  SketchRadio,
-  SketchScore,
-  SketchSongCard,
-  SketchTimer,
-} from '../components/sketch'
+import { SketchButton, SketchCard, SketchInput } from '../components/sketch'
 
 import { savePlayerName, getPlayerName } from '../lib/session'
 
 export function LandingPage() {
   const navigate = useNavigate()
   const [name, setName] = useState('')
-  const [showModal, setShowModal] = useState(false)
 
   useEffect(() => {
     const saved = getPlayerName()
@@ -34,10 +22,9 @@ export function LandingPage() {
 
   return (
     <main className="page page--landing">
-      <header className="page-header">
+      <header className="page-header page-header--landing">
         <p className="page-eyebrow">multiplayer music party game</p>
         <h1 className="page-title">Spot the Song</h1>
-        <p className="page-subtitle">sketched in a notebook, played on your phone</p>
       </header>
 
       <SketchCard className="landing-card" tiltSeed="landing">
@@ -57,36 +44,6 @@ export function LandingPage() {
           Continue
         </SketchButton>
       </SketchCard>
-
-      <SketchDivider label="sketch kit preview" />
-
-      <section className="sketch-preview" aria-label="Sketch UI preview">
-        <div className="sketch-preview__row">
-          <SketchCheckbox label="Title" defaultChecked />
-          <SketchCheckbox label="Artist" />
-        </div>
-        <div className="sketch-preview__row">
-          <SketchRadio name="mode" value="all-in" label="All In" defaultChecked />
-          <SketchRadio name="mode" value="turns" label="Turns" />
-        </div>
-        <SketchTimer secondsRemaining={12} totalSeconds={30} label="Round" />
-        <SketchScore label="Speed bonus" value={25} highlight />
-        <SketchSongCard
-          track={{
-            title: 'Example Track',
-            artist: 'The Sketch Band',
-            album: 'Notebook Sessions',
-            year: 1999,
-          }}
-        />
-        <SketchButton variant="ghost" onClick={() => setShowModal(true)}>
-          Open modal
-        </SketchButton>
-      </section>
-
-      <SketchModal open={showModal} title="How it feels" onClose={() => setShowModal(false)}>
-        <p>Rough edges, handwritten type, no glossy SaaS polish — just a party game drawn in pencil.</p>
-      </SketchModal>
     </main>
   )
 }

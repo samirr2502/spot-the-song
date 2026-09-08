@@ -28,6 +28,8 @@ export function useDeadlineAutoSubmit({
   useEffect(() => {
     if (!enabled || alreadyDone || attemptedRef.current) return
     if (!endsAt || secondsRemaining > triggerAtOrBelow) return
+    // Guard against stale countdown (e.g. endsAt just became set while remaining was still 0).
+    if (Date.now() < endsAt) return
 
     attemptedRef.current = true
     void onAutoSubmit()

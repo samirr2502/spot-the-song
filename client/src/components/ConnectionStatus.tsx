@@ -9,11 +9,11 @@ export function ConnectionStatus() {
   const navigate = useNavigate()
   const location = useLocation()
   const { connectionState, healthOk } = useSocketContext()
-  const { session, isHost, busy, closeRoom } = useRoom()
+  const { session, isHost, busy, closeRoom, returnToLobby } = useRoom()
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const inRoom = Boolean(session && location.pathname.toLowerCase().startsWith('/room/'))
-  const showCloseRoom = inRoom && isHost
+  const showExit = inRoom && isHost
 
   const socketLabel =
     connectionState === 'connected'
@@ -34,6 +34,14 @@ export function ConnectionStatus() {
     }
   }
 
+  async function handleGoToLobby() {
+    const ok = await returnToLobby()
+    setConfirmOpen(false)
+    if (ok && session) {
+      navigate(`/room/${session.roomCode}`, { replace: true })
+    }
+  }
+
   return (
     <>
       <div className="connection-status" aria-live="polite">
@@ -43,7 +51,7 @@ export function ConnectionStatus() {
             Socket: {socketLabel} · API: {healthLabel}
           </span>
         </div>
-        {showCloseRoom ? (
+        {showExit ? (
           <button
             type="button"
             className="connection-status__exit-link"
@@ -57,15 +65,19 @@ export function ConnectionStatus() {
 
       <SketchModal
         open={confirmOpen}
-        title="Close room?"
+        title="Exit game?"
         onClose={() => setConfirmOpen(false)}
       >
         <p className="connection-status__confirm-text">
-          This ends the game for everyone in the room. Players will return home.
+          Go to lobby to end the current game and start fresh with the same players. Close room
+          removes everyone from the room.
         </p>
         <div className="connection-status__confirm-actions">
           <SketchButton type="button" variant="ghost" fullWidth onClick={() => setConfirmOpen(false)}>
             Cancel
+          </SketchButton>
+          <SketchButton type="button" fullWidth disabled={busy} onClick={() => void handleGoToLobby()}>
+            {busy ? 'Returning…' : 'Go to lobby'}
           </SketchButton>
           <SketchButton type="button" fullWidth disabled={busy} onClick={() => void handleConfirmClose()}>
             {busy ? 'Closing…' : 'Close room'}

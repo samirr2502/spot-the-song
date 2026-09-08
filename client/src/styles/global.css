@@ -192,21 +192,22 @@ a {
   color: var(--ink-muted);
 }
 
+.page--landing {
+  justify-content: center;
+  min-height: calc(100dvh - 5rem);
+}
+
+.page-header--landing {
+  margin-bottom: var(--space-sm);
+}
+
 .landing-card {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-}
-
-.sketch-preview {
-  display: grid;
-  gap: var(--space-md);
-}
-
-.sketch-preview__row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-md);
+  width: 100%;
+  max-width: 20rem;
+  margin: 0 auto;
 }
 
 .home-actions {
@@ -281,6 +282,12 @@ a {
 .setup-checks {
   display: flex;
   flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.setup-radios {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-md);
 }
 
@@ -1217,6 +1224,7 @@ a {
   max-height: calc(100dvh - 2 * var(--space-md));
   display: flex;
   flex-direction: column;
+  gap: var(--space-sm);
   overflow: hidden;
   background: var(--paper);
   box-shadow: 4px 6px 0 color-mix(in srgb, var(--ink) 15%, transparent);
@@ -1224,24 +1232,19 @@ a {
 
 .sketch-modal__title {
   flex-shrink: 0;
-  margin: 0 0 var(--space-sm);
+  margin: 0;
   font-family: var(--font-hand);
   font-size: 1.8rem;
   color: var(--ink);
 }
 
 .sketch-modal__body {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  margin-bottom: var(--space-md);
   color: var(--ink);
   -webkit-overflow-scrolling: touch;
-}
-
-.sketch-modal__close {
-  flex-shrink: 0;
-  width: 100%;
+  overscroll-behavior: contain;
 }
 
 .sketch-timer {

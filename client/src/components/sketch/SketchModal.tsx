@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import { SketchButton } from './SketchButton'
 import { SketchCard } from './SketchCard'
 
 type SketchModalProps = {
@@ -26,9 +25,6 @@ export function SketchModal({ open, title, children, onClose }: SketchModalProps
           {title}
         </h2>
         <div className="sketch-modal__body">{children}</div>
-        <SketchButton variant="ghost" onClick={onClose} className="sketch-modal__close">
-          Close
-        </SketchButton>
       </SketchCard>
     </div>
   )

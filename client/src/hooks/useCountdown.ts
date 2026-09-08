@@ -1,22 +1,15 @@
 import { useEffect, useState } from 'react'
 
 export function useCountdown(endsAt: number | null | undefined): number {
-  const [remaining, setRemaining] = useState(0)
+  const [, setTick] = useState(0)
 
   useEffect(() => {
-    if (!endsAt) {
-      setRemaining(0)
-      return
-    }
+    if (!endsAt) return
 
-    const tick = () => {
-      setRemaining(Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)))
-    }
-
-    tick()
-    const interval = window.setInterval(tick, 250)
+    const interval = window.setInterval(() => setTick((tick) => tick + 1), 250)
     return () => window.clearInterval(interval)
   }, [endsAt])
 
-  return remaining
+  if (!endsAt) return 0
+  return Math.max(0, Math.ceil((endsAt - Date.now()) / 1000))
 }

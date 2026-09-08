@@ -645,8 +645,8 @@ export class RoomManager {
       return { ok: false, message: 'Only the host can return to the lobby.' }
     }
 
-    if (room.status !== 'final-results' && room.status !== 'how-to-play') {
-      return { ok: false, message: 'The game is already in progress.' }
+    if (room.status === 'lobby') {
+      return { ok: false, message: 'Already in the lobby.' }
     }
 
     this.resetRoomForNewSession(room, runtime)
