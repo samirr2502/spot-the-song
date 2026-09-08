@@ -71,10 +71,18 @@ export function SingAlongPlayPage() {
     (entry) => entry.playerId === roundResults.activePlayerId,
   )
 
-  async function handleStartRating() {
+  const handleStartRating = useCallback(async () => {
     clearError()
     await hostStartRating()
-  }
+  }, [clearError, hostStartRating])
+
+  useDeadlineAutoSubmit({
+    enabled: isPerforming && isHost && singTimerTotal > 0,
+    endsAt,
+    secondsRemaining,
+    alreadyDone: false,
+    onAutoSubmit: handleStartRating,
+  })
 
   async function handleSubmitRating() {
     clearError()
@@ -260,7 +268,7 @@ export function SingAlongPlayPage() {
       {isPerforming && isHost ? (
         <>
           {error ? <p className="form-error">{error}</p> : null}
-          <SketchButton fullWidth disabled={busy} onClick={handleStartRating}>
+          <SketchButton fullWidth disabled={busy} onClick={() => void handleStartRating()}>
             {busy ? '…' : 'Start voting'}
           </SketchButton>
         </>

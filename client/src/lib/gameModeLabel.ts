@@ -94,7 +94,8 @@ export function settingsForModeSelection(
   turnGame?: TurnGame,
 ): GameSettings {
   if (playMode === 'all-in') {
-    const { turnGame: _removed, ...rest } = current
+    const { turnGame, ...rest } = current
+    void turnGame
     return { ...rest, playMode: 'all-in' }
   }
 

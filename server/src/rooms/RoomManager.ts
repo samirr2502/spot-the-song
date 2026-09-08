@@ -1301,6 +1301,12 @@ export class RoomManager {
     syncCurrentRoundPublic(room, runtime)
 
     this.emitHandlers?.onRoomUpdated(this.getPublicRoom(roomId)!)
+
+    if (singTimerMs > 0) {
+      runtime.roundTimer = setTimeout(() => {
+        this.openSingAlongRating(roomId)
+      }, singTimerMs)
+    }
   }
 
   private openSingAlongRating(roomId: string): void {
@@ -1308,6 +1314,7 @@ export class RoomManager {
     const runtime = this.runtimes.get(roomId)
     if (!room || !runtime || !room.currentRound) return
     if (room.status !== 'playing') return
+    if (room.currentRound.phase !== 'playing') return
 
     clearRoundTimer(runtime)
     runtime.roundRatings.clear()
