@@ -2,6 +2,7 @@ import { type FormEvent, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   DEFAULT_GAME_SETTINGS,
+  DEFAULT_TIMELINE_CARDS_TO_WIN,
   type GameSettings,
   type GuessFields,
 } from '@spot-the-song/shared'
@@ -26,7 +27,9 @@ export function TimelineSetupPage() {
     album: false,
     year: false,
   })
-  const [roundCount, setRoundCount] = useState(String(DEFAULT_GAME_SETTINGS.roundCount))
+  const [cardsToWin, setCardsToWin] = useState(
+    String(DEFAULT_GAME_SETTINGS.cardsToWin ?? DEFAULT_TIMELINE_CARDS_TO_WIN),
+  )
   const [clipDuration, setClipDuration] = useState(String(DEFAULT_GAME_SETTINGS.clipDurationSeconds))
   const [guessTimer, setGuessTimer] = useState(String(DEFAULT_GAME_SETTINGS.guessTimerSeconds ?? 0))
   const [localError, setLocalError] = useState<string | null>(null)
@@ -41,11 +44,12 @@ export function TimelineSetupPage() {
       playMode: 'turns',
       turnGame: 'timeline',
       guessFields,
-      roundCount: Number.parseInt(roundCount, 10) || 1,
+      roundCount: DEFAULT_GAME_SETTINGS.roundCount,
+      cardsToWin: Number.parseInt(cardsToWin, 10) || DEFAULT_TIMELINE_CARDS_TO_WIN,
       clipDurationSeconds,
       guessTimerSeconds: parseExtraSeconds(guessTimer),
     }),
-    [guessFields, roundCount, clipDurationSeconds, guessTimer],
+    [guessFields, cardsToWin, clipDurationSeconds, guessTimer],
   )
 
   function toggleField(field: keyof GuessFields) {
@@ -67,10 +71,10 @@ export function TimelineSetupPage() {
       const result = await previewMusicLink(spotifyUrl)
       setPreview(result)
 
-      const minimumTracks = settings.roundCount + 1
+      const minimumTracks = settings.cardsToWin ?? DEFAULT_TIMELINE_CARDS_TO_WIN
       if (result.totalTracks < minimumTracks) {
         setPreviewError(
-          `Only ${result.totalTracks} tracks — need at least ${minimumTracks} for starters and rounds.`,
+          `Only ${result.totalTracks} tracks — need at least ${minimumTracks} for starter and earned cards.`,
         )
       }
     } catch (err) {
@@ -159,13 +163,13 @@ export function TimelineSetupPage() {
           </fieldset>
 
           <SketchInput
-            label="Number of rounds"
-            name="roundCount"
+            label="Cards to win"
+            name="cardsToWin"
             type="number"
             min={1}
             max={20}
-            value={roundCount}
-            onChange={(event) => setRoundCount(event.target.value)}
+            value={cardsToWin}
+            onChange={(event) => setCardsToWin(event.target.value)}
           />
 
           <ExtraTimeAfterClipField

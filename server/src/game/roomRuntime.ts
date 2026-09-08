@@ -17,6 +17,7 @@ export type RoomRuntime = {
   timelinePlacementIndex: number | null
   timelineBonusAnswers: TimelineBonusPayload | null
   timelinePlacementLocked: boolean
+  playerCoins: Map<string, number>
   turnRotationIndex: number
   roundStartedAt: number | null
   /** End of clip portion — speed bonus cutoff for All In. */
@@ -40,6 +41,7 @@ export function createRoomRuntime(trackPool: Track[]): RoomRuntime {
     timelinePlacementIndex: null,
     timelineBonusAnswers: null,
     timelinePlacementLocked: false,
+    playerCoins: new Map(),
     turnRotationIndex: 0,
     roundStartedAt: null,
     clipEndsAt: null,

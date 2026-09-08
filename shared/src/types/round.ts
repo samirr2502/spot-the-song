@@ -34,6 +34,17 @@ export type FieldScore = {
   answer?: string
 }
 
+export type TimelineCoinChangeReason =
+  | 'bonus-title'
+  | 'bonus-artist'
+  | 'challenge-cost'
+
+export type TimelineCoinChange = {
+  playerId: string
+  delta: number
+  reason: TimelineCoinChangeReason
+}
+
 export type PlayerRoundResult = {
   playerId: string
   fieldScores: FieldScore[]
@@ -49,6 +60,10 @@ export type RoundResultsPayload = {
   ratingCount?: number
   placementCorrect?: boolean
   insertIndex?: number
+  challengerPlayerId?: string
+  cardAwardedTo?: string
+  coinChanges?: TimelineCoinChange[]
+  cardCounts?: Record<string, number>
   track: RevealTrack
   fieldOutcomes?: Array<{
     field: GuessFieldKey

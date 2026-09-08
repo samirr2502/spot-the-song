@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { describeInsertPosition } from '@spot-the-song/shared'
+import {
+  DEFAULT_TIMELINE_CHALLENGE_TIMER_SECONDS,
+  describeInsertPosition,
+  TIMELINE_CHALLENGE_COST,
+} from '@spot-the-song/shared'
 import { RoundClipPlayer } from '../components/RoundClipPlayer'
 import { TimelineBoard } from '../components/TimelineBoard'
 import {
@@ -22,6 +26,23 @@ const FIELD_LABELS: Record<'title' | 'artist', string> = {
   artist: 'Artist',
 }
 
+function getCardsToWin(room: { settings: { cardsToWin?: number; roundCount: number } }): number {
+  return room.settings.cardsToWin ?? room.settings.roundCount
+}
+
+function formatCoinReason(reason: string): string {
+  switch (reason) {
+    case 'bonus-title':
+      return 'Correct title guess'
+    case 'bonus-artist':
+      return 'Correct artist guess'
+    case 'challenge-cost':
+      return 'Challenge cost'
+    default:
+      return reason
+  }
+}
+
 export function TimelinePlayPage() {
   const navigate = useNavigate()
   const { code = '' } = useParams()
@@ -34,6 +55,7 @@ export function TimelinePlayPage() {
     error,
     placeCard,
     submitTimelineBonus,
+    challengeTimelinePlacement,
     continueAfterResults,
     clearError,
   } = useRoom()
@@ -50,6 +72,8 @@ export function TimelinePlayPage() {
   const totalPlacementSeconds = clipDurationSeconds + placementTimerSeconds
   const clipSecondsRemaining = useCountdown(round?.clipEndsAt ?? null)
   const clipEndsAt = round?.clipEndsAt ?? null
+  const challengeTimerSeconds =
+    room?.settings.challengeTimerSeconds ?? DEFAULT_TIMELINE_CHALLENGE_TIMER_SECONDS
 
   const activePlayer = useMemo(() => {
     if (!room || !round?.activePlayerId) return null
@@ -59,9 +83,17 @@ export function TimelinePlayPage() {
   const isActivePlayer = !!session && session.playerId === round?.activePlayerId
   const isClipPlaying = room?.status === 'playing' && round?.phase === 'clip-playing'
   const isPlacing = room?.status === 'playing' && round?.phase === 'answering'
+  const isChallenge = room?.status === 'playing' && round?.phase === 'challenge'
   const isPlacementWindow = isClipPlaying || isPlacing
   const isRoundResults = room?.status === 'round-results'
   const showIntro = room?.status === 'playing' && round?.phase === 'round-intro'
+
+  const myCoins = session ? room?.coins?.[session.playerId] ?? 0 : 0
+  const canChallenge =
+    isChallenge &&
+    !isActivePlayer &&
+    !round?.challengerPlayerId &&
+    myCoins >= TIMELINE_CHALLENGE_COST
 
   const activeTimeline = useMemo(() => {
     if (!room || !round?.activePlayerId) return []
@@ -95,6 +127,12 @@ export function TimelinePlayPage() {
     setBonusSubmitted(false)
   }, [round?.index])
 
+  useEffect(() => {
+    if (isChallenge || isRoundResults) {
+      setPlacementLocked(true)
+    }
+  }, [isChallenge, isRoundResults])
+
   const activeResult = roundResults?.playerResults.find(
     (entry) => entry.playerId === roundResults.activePlayerId,
   )
@@ -103,6 +141,8 @@ export function TimelinePlayPage() {
   const viewingTitle = isActivePlayer
     ? 'Your timeline'
     : `${activePlayer?.name ?? 'Player'}'s timeline`
+
+  const cardsToWin = room ? getCardsToWin(room) : 5
 
   async function handlePlaceCard() {
     clearError()
@@ -125,6 +165,11 @@ export function TimelinePlayPage() {
       setBonusSubmitted(true)
       setBonusAnswers({})
     }
+  }
+
+  async function handleChallenge() {
+    clearError()
+    await challengeTimelinePlacement()
   }
 
   const autoSubmitBonus = useCallback(async () => {
@@ -161,14 +206,15 @@ export function TimelinePlayPage() {
     clearError()
     if (!room || !roundResults) return
 
-    const isLastRound = roundResults.roundIndex >= room.settings.roundCount
+    const cardCounts = roundResults.cardCounts ?? {}
+    const hasWinner = Object.values(cardCounts).some((count) => count >= cardsToWin)
     const ok = await continueAfterResults()
     if (!ok) return
 
     setSelectedIndex(null)
     setPlacementLocked(false)
     setBonusSubmitted(false)
-    navigate(isLastRound ? `/room/${normalizedCode}/results` : `/room/${normalizedCode}/play`)
+    navigate(hasWinner ? `/room/${normalizedCode}/results` : `/room/${normalizedCode}/play`)
   }
 
   if (!inRoom || !room) {
@@ -182,6 +228,27 @@ export function TimelinePlayPage() {
   }
 
   if (isRoundResults && roundResults) {
+    const cardCounts = roundResults.cardCounts ?? {}
+    const hasWinner = Object.values(cardCounts).some((count) => count >= cardsToWin)
+    const cardRecipient = roundResults.cardAwardedTo
+      ? room.players.find((player) => player.id === roundResults.cardAwardedTo)
+      : null
+    const challenger = roundResults.challengerPlayerId
+      ? room.players.find((player) => player.id === roundResults.challengerPlayerId)
+      : null
+
+    let placementMessage = 'Incorrect placement — card discarded'
+    if (roundResults.placementCorrect && cardRecipient) {
+      placementMessage = `${cardRecipient.name} keeps the card — placed ${describeInsertPosition(
+        roundResults.insertIndex ?? 0,
+        Math.max(0, (room.timelines?.[roundResults.activePlayerId ?? '']?.length ?? 1) - 1),
+      )}`
+    } else if (!roundResults.placementCorrect && cardRecipient && challenger) {
+      placementMessage = `${challenger.name} challenged — card goes to ${cardRecipient.name}`
+    } else if (!roundResults.placementCorrect && challenger) {
+      placementMessage = `${challenger.name} challenged, but the placement was wrong and no card was awarded`
+    }
+
     return (
       <main className="page page--play">
         <header className="page-header">
@@ -195,14 +262,27 @@ export function TimelinePlayPage() {
           <SketchCard tiltSeed="timeline-active-result">
             <p className="page-eyebrow">active player</p>
             <p className="turn-active-name">{activePlayer.name}</p>
-            <p className="lobby-players__status">
-              {roundResults.placementCorrect
-                ? `Correct — placed ${describeInsertPosition(
-                    roundResults.insertIndex ?? 0,
-                    Math.max(0, (room.timelines?.[roundResults.activePlayerId ?? '']?.length ?? 1) - 1),
-                  )}`
-                : 'Incorrect placement — card discarded'}
-            </p>
+            <p className="lobby-players__status">{placementMessage}</p>
+          </SketchCard>
+        ) : null}
+
+        {roundResults.coinChanges && roundResults.coinChanges.length > 0 ? (
+          <SketchCard tiltSeed="timeline-coins-result">
+            <h2 className="lobby-players__title">Coins</h2>
+            <ul className="leaderboard-list">
+              {roundResults.coinChanges.map((change, index) => {
+                const player = room.players.find((entry) => entry.id === change.playerId)
+                const sign = change.delta > 0 ? '+' : ''
+                return (
+                  <li key={`${change.playerId}-${change.reason}-${index}`} className="leaderboard-list__item">
+                    <span>
+                      {player?.name ?? 'Player'} — {formatCoinReason(change.reason)}
+                    </span>
+                    <span>{sign}{change.delta}</span>
+                  </li>
+                )
+              })}
+            </ul>
           </SketchCard>
         ) : null}
 
@@ -237,6 +317,20 @@ export function TimelinePlayPage() {
           title={`${activePlayer?.name ?? 'Player'}'s timeline`}
         />
 
+        <SketchCard tiltSeed="timeline-card-counts">
+          <h2 className="lobby-players__title">Cards collected</h2>
+          <ol className="leaderboard-list">
+            {room.players.map((player) => (
+              <li key={player.id} className="leaderboard-list__item">
+                <span>{player.name}</span>
+                <span>
+                  {cardCounts[player.id] ?? 0} / {cardsToWin}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </SketchCard>
+
         <SketchCard tiltSeed="timeline-leaderboard">
           <h2 className="lobby-players__title">Leaderboard</h2>
           <ol className="leaderboard-list">
@@ -255,7 +349,7 @@ export function TimelinePlayPage() {
 
         {isHost ? (
           <SketchButton fullWidth disabled={busy} onClick={handleContinue}>
-            {busy ? '…' : roundResults.roundIndex >= room.settings.roundCount ? 'Final scores' : 'Next round'}
+            {busy ? '…' : hasWinner ? 'Final scores' : 'Next round'}
           </SketchButton>
         ) : (
           <SketchCard tiltSeed="timeline-wait-results" className="lobby-wait-card">
@@ -269,12 +363,19 @@ export function TimelinePlayPage() {
   return (
     <main className="page page--play">
       <header className="page-header">
-        <p className="page-eyebrow">
-          round {round?.index ?? 0} of {room.settings.roundCount}
-        </p>
+        <p className="page-eyebrow">round {round?.index ?? 0}</p>
         <h1 className="page-title page-title--sm">
-          {showIntro ? 'Get ready…' : isPlacementWindow ? 'Place the card' : 'Timeline'}
+          {showIntro
+            ? 'Get ready…'
+            : isChallenge
+              ? 'Challenge window'
+              : isPlacementWindow
+                ? 'Place the card'
+                : 'Timeline'}
         </h1>
+        {session ? (
+          <p className="page-subtitle">Your coins: {myCoins}</p>
+        ) : null}
       </header>
 
       {activePlayer ? (
@@ -307,6 +408,14 @@ export function TimelinePlayPage() {
         />
       ) : null}
 
+      {isChallenge ? (
+        <SketchTimer
+          secondsRemaining={secondsRemaining}
+          totalSeconds={challengeTimerSeconds}
+          label="Time to challenge"
+        />
+      ) : null}
+
       {showIntro ? (
         <SketchCard tiltSeed="timeline-intro" className="lobby-wait-card">
           {isActivePlayer ? (
@@ -317,7 +426,7 @@ export function TimelinePlayPage() {
         </SketchCard>
       ) : null}
 
-      {isPlacementWindow ? (
+      {(isPlacementWindow || isChallenge) ? (
         <TimelineBoard
           cards={viewingTimeline}
           title={viewingTitle}
@@ -337,6 +446,7 @@ export function TimelinePlayPage() {
       {isPlacementWindow && isActivePlayer && placementLocked && (bonusFieldsEnabled.title || bonusFieldsEnabled.artist) && !bonusSubmitted ? (
         <SketchCard tiltSeed="timeline-bonus">
           <h2 className="lobby-players__title">Bonus guesses</h2>
+          <p className="lobby-players__status">Correct title or artist guesses earn +1 coin each.</p>
           {bonusFieldsEnabled.title ? (
             <SketchInput
               label={FIELD_LABELS.title}
@@ -368,13 +478,41 @@ export function TimelinePlayPage() {
 
       {isPlacementWindow && isActivePlayer && placementLocked && bonusSubmitted ? (
         <SketchCard tiltSeed="timeline-wait-reveal" className="lobby-wait-card">
-          <p>Waiting for reveal…</p>
+          <p>Placement locked — waiting for the challenge window…</p>
         </SketchCard>
       ) : null}
 
       {isPlacementWindow && isActivePlayer && placementLocked && !bonusFieldsEnabled.title && !bonusFieldsEnabled.artist ? (
         <SketchCard tiltSeed="timeline-wait-reveal" className="lobby-wait-card">
-          <p>Placement locked — waiting for reveal…</p>
+          <p>Placement locked — waiting for the challenge window…</p>
+        </SketchCard>
+      ) : null}
+
+      {isChallenge && isActivePlayer ? (
+        <SketchCard tiltSeed="timeline-wait-challenge" className="lobby-wait-card">
+          <p>Other players can challenge your placement for {TIMELINE_CHALLENGE_COST} coins…</p>
+        </SketchCard>
+      ) : null}
+
+      {isChallenge && !isActivePlayer ? (
+        <SketchCard tiltSeed="timeline-challenge">
+          <h2 className="lobby-players__title">Challenge placement?</h2>
+          <p className="lobby-players__status">
+            Spend {TIMELINE_CHALLENGE_COST} coins to challenge. If their year placement is wrong, you get the card on your timeline.
+          </p>
+          {round?.challengerPlayerId ? (
+            <p className="lobby-players__status">
+              {room.players.find((player) => player.id === round.challengerPlayerId)?.name ?? 'Someone'} challenged.
+            </p>
+          ) : null}
+          {error ? <p className="form-error">{error}</p> : null}
+          <SketchButton fullWidth disabled={busy || !canChallenge} onClick={handleChallenge}>
+            {canChallenge
+              ? `Challenge (${TIMELINE_CHALLENGE_COST} coins)`
+              : myCoins < TIMELINE_CHALLENGE_COST
+                ? `Need ${TIMELINE_CHALLENGE_COST} coins`
+                : 'Already challenged'}
+          </SketchButton>
         </SketchCard>
       ) : null}
 

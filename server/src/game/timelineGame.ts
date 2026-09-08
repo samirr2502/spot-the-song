@@ -7,9 +7,11 @@ import type {
   Track,
 } from '@spot-the-song/shared'
 import {
-  isTimelinePlacementCorrect,
-  scoreTimelineRound,
+  DEFAULT_TIMELINE_CARDS_TO_WIN,
+  getTimelineCardCounts,
+  resolveTimelineTurn,
   timelineYearsFromTrackIds,
+  TIMELINE_STARTING_COINS,
 } from '@spot-the-song/shared'
 import type { RoomRuntime } from './roomRuntime.js'
 import { buildLeaderboard } from './allInGame.js'
@@ -18,13 +20,17 @@ import { pickRandomTrack, toRevealTrack } from './roomRuntime.js'
 
 export { getActivePlayerForTurn }
 
+export function getTimelineCardsToWin(room: GameRoom): number {
+  return room.settings.cardsToWin ?? room.settings.roundCount ?? DEFAULT_TIMELINE_CARDS_TO_WIN
+}
+
 export function initializePlayerTimelines(room: GameRoom, runtime: RoomRuntime): string | null {
   runtime.playerTimelines.clear()
 
   for (const player of room.players) {
     const track = pickRandomTrack(runtime)
     if (!track) {
-      return 'Not enough tracks for starter cards — lower the round count or add more music.'
+      return 'Not enough tracks for starter cards — add more music or lower cards to win.'
     }
 
     runtime.playerTimelines.set(player.id, [
@@ -33,6 +39,28 @@ export function initializePlayerTimelines(room: GameRoom, runtime: RoomRuntime):
   }
 
   return null
+}
+
+export function initializePlayerCoins(room: GameRoom, runtime: RoomRuntime): void {
+  runtime.playerCoins.clear()
+  for (const player of room.players) {
+    runtime.playerCoins.set(player.id, TIMELINE_STARTING_COINS)
+  }
+}
+
+export function getPublicCoins(runtime: RoomRuntime): Record<string, number> {
+  const coins: Record<string, number> = {}
+  for (const [playerId, balance] of runtime.playerCoins.entries()) {
+    coins[playerId] = balance
+  }
+  return coins
+}
+
+export function applyCoinChanges(runtime: RoomRuntime, changes: Array<{ playerId: string; delta: number }>): void {
+  for (const change of changes) {
+    const current = runtime.playerCoins.get(change.playerId) ?? 0
+    runtime.playerCoins.set(change.playerId, Math.max(0, current + change.delta))
+  }
 }
 
 export function getTrackById(runtime: RoomRuntime, trackId: string): Track | undefined {
@@ -132,49 +160,72 @@ export function canFinishTimelineTurn(room: GameRoom, runtime: RoomRuntime): boo
 export function scoreTimelineRoundResults(
   room: GameRoom,
   runtime: RoomRuntime,
+  challengerPlayerId: string | null,
 ): RoundResultsPayload | null {
   const track = runtime.currentTrack
   const activePlayerId = room.currentRound?.activePlayerId
   if (!track || !activePlayerId || !room.currentRound) return null
 
-  const timeline = runtime.playerTimelines.get(activePlayerId) ?? []
-  const years = timelineYearsFromTrackIds(
-    timeline.map((card) => card.trackId),
+  const activeTimeline = runtime.playerTimelines.get(activePlayerId) ?? []
+  const activeTimelineYears = timelineYearsFromTrackIds(
+    activeTimeline.map((card) => card.trackId),
     (trackId) => getTrackById(runtime, trackId)?.year,
   )
 
+  const challengerTimelineYears =
+    challengerPlayerId !== null
+      ? timelineYearsFromTrackIds(
+          (runtime.playerTimelines.get(challengerPlayerId) ?? []).map((card) => card.trackId),
+          (trackId) => getTrackById(runtime, trackId)?.year,
+        )
+      : null
+
   const insertIndex = runtime.timelinePlacementIndex
-  const placementCorrect =
-    insertIndex !== null && isTimelinePlacementCorrect(track.year, years, insertIndex)
-
-  if (placementCorrect && insertIndex !== null) {
-    const nextTimeline = [...timeline]
-    nextTimeline.splice(insertIndex, 0, {
-      trackId: track.id,
-      isStarter: false,
-      revealed: true,
-    })
-    runtime.playerTimelines.set(activePlayerId, nextTimeline)
-  }
-
-  const result = scoreTimelineRound(
+  const resolution = resolveTimelineTurn(
     activePlayerId,
+    challengerPlayerId,
     track,
-    placementCorrect,
+    activeTimelineYears,
+    challengerTimelineYears,
+    insertIndex,
     runtime.timelineBonusAnswers,
     room.settings.guessFields,
   )
 
-  room.scores[activePlayerId] = (room.scores[activePlayerId] ?? 0) + result.totalRoundPoints
+  applyCoinChanges(
+    runtime,
+    resolution.coinChanges.filter((change) => change.reason !== 'challenge-cost'),
+  )
+
+  if (resolution.cardAwardedTo !== null && resolution.cardInsertIndex !== null) {
+    const recipientTimeline = [...(runtime.playerTimelines.get(resolution.cardAwardedTo) ?? [])]
+    recipientTimeline.splice(resolution.cardInsertIndex, 0, {
+      trackId: track.id,
+      isStarter: false,
+      revealed: true,
+    })
+    runtime.playerTimelines.set(resolution.cardAwardedTo, recipientTimeline)
+  }
+
+  room.scores[activePlayerId] =
+    (room.scores[activePlayerId] ?? 0) + resolution.playerResult.totalRoundPoints
+
+  const connectedPlayerIds = room.players
+    .filter((player) => player.connected)
+    .map((player) => player.id)
 
   return {
     roundIndex: room.currentRound.index,
     mode: 'timeline',
     activePlayerId,
-    placementCorrect,
+    placementCorrect: resolution.placementCorrect,
     insertIndex: insertIndex ?? undefined,
+    challengerPlayerId: challengerPlayerId ?? undefined,
+    cardAwardedTo: resolution.cardAwardedTo ?? undefined,
+    coinChanges: resolution.coinChanges.filter((change) => change.reason !== 'challenge-cost'),
+    cardCounts: getTimelineCardCounts(connectedPlayerIds, runtime.playerTimelines),
     track: toRevealTrack(track),
-    playerResults: [result],
+    playerResults: [resolution.playerResult],
     leaderboard: buildLeaderboard(room),
   }
 }

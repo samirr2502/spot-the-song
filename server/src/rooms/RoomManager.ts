@@ -1,5 +1,5 @@
 import type { GameRoom, GameSettings, HostClipPlayPayload, PlaceCardPayload, Player, RatingPayload, RoundResultsPayload, SpotifyPlayTrackPayload, RoundClipEndedPayload, SubmitAnswersPayload, TimelineBonusPayload, VotePayload } from '@spot-the-song/shared'
-import { DEFAULT_GAME_SETTINGS, computeCombinedRoundWindowFromSettings, fillMissingRatings, fillMissingVotes, getSpotifyCatalogUrlError, mergeVotePayloadWithDefaults, resolveRatingOrDefault, validateGameSettings, validateSingAlongSettings, validateTimelineSettings } from '@spot-the-song/shared'
+import { DEFAULT_GAME_SETTINGS, DEFAULT_TIMELINE_CHALLENGE_TIMER_SECONDS, computeCombinedRoundWindowFromSettings, fillMissingRatings, fillMissingVotes, getSpotifyCatalogUrlError, getTimelineWinners, mergeVotePayloadWithDefaults, resolveRatingOrDefault, validateGameSettings, validateSingAlongSettings, validateTimelineSettings, TIMELINE_CHALLENGE_COST } from '@spot-the-song/shared'
 import {
   resetRoundRuntime,
   scoreRound,
@@ -23,6 +23,9 @@ import {
   bonusFieldsEnabled,
   canFinishTimelineTurn,
   getActivePlayerForTurn,
+  getPublicCoins,
+  getTimelineCardsToWin,
+  initializePlayerCoins,
   initializePlayerTimelines,
   scoreTimelineRoundResults,
   storeTimelineBonus,
@@ -178,21 +181,28 @@ export class RoomManager {
       }
     }
 
-    if (musicImport.tracks.length < settings.roundCount) {
-      return {
-        ok: false,
-        message: `Only ${musicImport.tracks.length} tracks available — lower the round count.`,
+    if (
+      settings.playMode !== 'turns' ||
+      settings.turnGame !== 'timeline'
+    ) {
+      if (musicImport.tracks.length < settings.roundCount) {
+        return {
+          ok: false,
+          message: `Only ${musicImport.tracks.length} tracks available — lower the round count.`,
+        }
       }
     }
 
     if (
       settings.playMode === 'turns' &&
-      settings.turnGame === 'timeline' &&
-      musicImport.tracks.length < settings.roundCount + 1
+      settings.turnGame === 'timeline'
     ) {
-      return {
-        ok: false,
-        message: `Need at least ${settings.roundCount + 1} tracks for timeline rounds and a starter card.`,
+      const cardsToWin = settings.cardsToWin ?? settings.roundCount
+      if (musicImport.tracks.length < cardsToWin) {
+        return {
+          ok: false,
+          message: `Need at least ${cardsToWin} tracks for timeline starter cards and earned cards.`,
+        }
       }
     }
 
@@ -309,20 +319,22 @@ export class RoomManager {
     }
 
     const runtime = this.runtimes.get(roomId)
-    if (!runtime || runtime.trackPool.length < room.settings.roundCount) {
-      return {
-        ok: false,
-        message: 'Not enough tracks for this many rounds. Lower the round count.',
+    if (!this.isTimeline(room)) {
+      if (!runtime || runtime.trackPool.length < room.settings.roundCount) {
+        return {
+          ok: false,
+          message: 'Not enough tracks for this many rounds. Lower the round count.',
+        }
       }
-    }
-
-    if (
-      this.isTimeline(room) &&
-      runtime.trackPool.length < room.settings.roundCount + room.players.length
-    ) {
-      return {
-        ok: false,
-        message: `Need at least ${room.settings.roundCount + room.players.length} tracks for timeline starter cards and rounds.`,
+    } else if (!runtime) {
+      return { ok: false, message: 'Room not found.' }
+    } else {
+      const minimumTracks = room.players.length + getTimelineCardsToWin(room) - 1
+      if (runtime.trackPool.length < minimumTracks) {
+        return {
+          ok: false,
+          message: `Need at least ${minimumTracks} tracks for timeline starter cards and earned cards.`,
+        }
       }
     }
 
@@ -543,8 +555,46 @@ export class RoomManager {
     syncCurrentRoundPublic(room, runtime)
 
     if (canFinishTimelineTurn(room, runtime)) {
-      return this.finishTimelineRound(roomId)
+      return this.beginTimelineChallengePhase(roomId)
     }
+
+    return { ok: true, room: this.getPublicRoom(roomId)! }
+  }
+
+  challengeTimelinePlacement(roomId: string, playerId: string): SimpleResult {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime) return { ok: false, message: 'Room not found.' }
+
+    if (!this.isTimeline(room)) {
+      return { ok: false, message: 'Timeline challenges are not active.' }
+    }
+
+    if (room.status !== 'playing' || room.currentRound?.phase !== 'challenge') {
+      return { ok: false, message: 'Not accepting challenges right now.' }
+    }
+
+    const activePlayerId = room.currentRound.activePlayerId
+    if (!activePlayerId) {
+      return { ok: false, message: 'No active player for this turn.' }
+    }
+
+    if (playerId === activePlayerId) {
+      return { ok: false, message: 'You cannot challenge your own placement.' }
+    }
+
+    if (room.currentRound.challengerPlayerId) {
+      return { ok: false, message: 'Someone already challenged this placement.' }
+    }
+
+    const balance = runtime.playerCoins.get(playerId) ?? 0
+    if (balance < TIMELINE_CHALLENGE_COST) {
+      return { ok: false, message: `You need ${TIMELINE_CHALLENGE_COST} coins to challenge.` }
+    }
+
+    runtime.playerCoins.set(playerId, balance - TIMELINE_CHALLENGE_COST)
+    room.currentRound.challengerPlayerId = playerId
+    syncCurrentRoundPublic(room, runtime)
 
     return { ok: true, room: this.getPublicRoom(roomId)! }
   }
@@ -589,7 +639,7 @@ export class RoomManager {
     syncCurrentRoundPublic(room, runtime)
 
     if (canFinishTimelineTurn(room, runtime)) {
-      return this.finishTimelineRound(roomId)
+      return this.beginTimelineChallengePhase(roomId)
     }
 
     return { ok: true, room: this.getPublicRoom(roomId)! }
@@ -608,6 +658,29 @@ export class RoomManager {
     }
 
     const nextIndex = (room.currentRound?.index ?? 0) + 1
+
+    if (this.isTimeline(room)) {
+      const runtime = this.runtimes.get(roomId)
+      if (!runtime) return { ok: false, message: 'Room not found.' }
+
+      const cardsToWin = getTimelineCardsToWin(room)
+      const connectedPlayerIds = room.players
+        .filter((player) => player.connected)
+        .map((player) => player.id)
+      const winners = getTimelineWinners(connectedPlayerIds, runtime.playerTimelines, cardsToWin)
+      const tracksRemaining = runtime.trackPool.some(
+        (track) => !runtime.usedTrackIds.includes(track.id),
+      )
+
+      if (winners.length > 0 || !tracksRemaining) {
+        room.status = 'final-results'
+        room.currentRound = null
+        return { ok: true, room: this.getPublicRoom(roomId)! }
+      }
+
+      return this.startRound(roomId, nextIndex)
+    }
+
     if (nextIndex > room.settings.roundCount) {
       room.status = 'final-results'
       room.currentRound = null
@@ -732,6 +805,7 @@ export class RoomManager {
     runtime.howToPlayAcks.clear()
     runtime.turnRotationIndex = 0
     runtime.playerTimelines.clear()
+    runtime.playerCoins.clear()
     resetRoundRuntime(runtime)
     clearRoundTimer(runtime)
     room.currentRound = null
@@ -769,16 +843,16 @@ export class RoomManager {
       return 'No playable Spotify tracks in this link. Try another playlist or album.'
     }
 
-    if (musicImport.tracks.length < settings.roundCount) {
-      return `Only ${musicImport.tracks.length} tracks available — lower the round count.`
+    if (settings.playMode !== 'turns' || settings.turnGame !== 'timeline') {
+      if (musicImport.tracks.length < settings.roundCount) {
+        return `Only ${musicImport.tracks.length} tracks available — lower the round count.`
+      }
+      return null
     }
 
-    if (
-      settings.playMode === 'turns' &&
-      settings.turnGame === 'timeline' &&
-      musicImport.tracks.length < settings.roundCount + 1
-    ) {
-      return `Need at least ${settings.roundCount + 1} tracks for timeline rounds and a starter card.`
+    const cardsToWin = settings.cardsToWin ?? settings.roundCount
+    if (musicImport.tracks.length < cardsToWin) {
+      return `Need at least ${cardsToWin} tracks for timeline starter cards and earned cards.`
     }
 
     return null
@@ -789,16 +863,17 @@ export class RoomManager {
     room: GameRoom,
     settings: GameSettings,
   ): string | null {
-    if (runtime.trackPool.length < settings.roundCount) {
-      return `Only ${runtime.trackPool.length} tracks available — lower the round count or change the collection.`
+    if (settings.playMode !== 'turns' || settings.turnGame !== 'timeline') {
+      if (runtime.trackPool.length < settings.roundCount) {
+        return `Only ${runtime.trackPool.length} tracks available — lower the round count or change the collection.`
+      }
+      return null
     }
 
-    if (
-      settings.playMode === 'turns' &&
-      settings.turnGame === 'timeline' &&
-      runtime.trackPool.length < settings.roundCount + room.players.length
-    ) {
-      return `Need at least ${settings.roundCount + room.players.length} tracks for timeline starter cards and rounds.`
+    const cardsToWin = settings.cardsToWin ?? settings.roundCount
+    const minimumTracks = room.players.length + cardsToWin - 1
+    if (runtime.trackPool.length < minimumTracks) {
+      return `Need at least ${minimumTracks} tracks for timeline starter cards and earned cards.`
     }
 
     return null
@@ -918,6 +993,7 @@ export class RoomManager {
     const publicRoom = toPublicRoom(room, runtime)
     if (runtime && this.isTimeline(room)) {
       publicRoom.timelines = toPublicTimelines(room, runtime)
+      publicRoom.coins = getPublicCoins(runtime)
     }
     return publicRoom
   }
@@ -975,6 +1051,7 @@ export class RoomManager {
       if (initError) {
         return { ok: false, message: initError }
       }
+      initializePlayerCoins(room, runtime)
     }
 
     return this.startRound(roomId, 1)
@@ -1129,7 +1206,7 @@ export class RoomManager {
 
     clearRoundTimer(runtime)
     runtime.roundTimer = setTimeout(() => {
-      void this.finishTimelineRound(roomId)
+      void this.beginTimelineChallengePhase(roomId)
     }, window.totalMs)
 
     setTimeout(() => {
@@ -1418,8 +1495,45 @@ export class RoomManager {
     this.emitHandlers?.onRoomUpdated(this.getPublicRoom(roomId)!)
 
     runtime.roundTimer = setTimeout(() => {
-      void this.finishTimelineRound(roomId)
+      void this.beginTimelineChallengePhase(roomId)
     }, placementTimerMs)
+  }
+
+  private beginTimelineChallengePhase(roomId: string): SimpleResult {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime || !room.currentRound) {
+      return { ok: false, message: 'No active round.' }
+    }
+
+    if (room.status !== 'playing') {
+      return { ok: false, message: 'Not in an active round.' }
+    }
+
+    if (room.currentRound.phase === 'challenge') {
+      return { ok: true, room: this.getPublicRoom(roomId)! }
+    }
+
+    clearRoundTimer(runtime)
+
+    const challengeSeconds =
+      room.settings.challengeTimerSeconds ?? DEFAULT_TIMELINE_CHALLENGE_TIMER_SECONDS
+    const challengeMs = challengeSeconds * 1000
+
+    room.currentRound.phase = 'challenge'
+    room.currentRound.challengeEndsAt = Date.now() + challengeMs
+    room.currentRound.challengerPlayerId = null
+    room.currentRound.endsAt = room.currentRound.challengeEndsAt
+    syncCurrentRoundPublic(room, runtime)
+
+    const publicRoom = this.getPublicRoom(roomId)!
+    this.emitHandlers?.onRoomUpdated(publicRoom)
+
+    runtime.roundTimer = setTimeout(() => {
+      void this.finishTimelineRound(roomId)
+    }, challengeMs)
+
+    return { ok: true, room: publicRoom }
   }
 
   private finishTimelineRound(roomId: string): SimpleResult {
@@ -1433,8 +1547,10 @@ export class RoomManager {
 
     room.currentRound.phase = 'reveal'
     room.currentRound.endsAt = null
+    room.currentRound.challengeEndsAt = null
 
-    const roundResults = scoreTimelineRoundResults(room, runtime)
+    const challengerPlayerId = room.currentRound.challengerPlayerId ?? null
+    const roundResults = scoreTimelineRoundResults(room, runtime, challengerPlayerId)
     runtime.turnRotationIndex += 1
     room.status = 'round-results'
 
@@ -1562,7 +1678,9 @@ export class RoomManager {
     if (this.isTimeline(room)) {
       if (phase === 'clip-playing') {
         this.openTimelineAnswering(roomId)
-      } else if (phase === 'playing' || phase === 'answering' || phase === 'round-intro') {
+      } else if (phase === 'answering' || phase === 'round-intro') {
+        void this.beginTimelineChallengePhase(roomId)
+      } else if (phase === 'challenge') {
         void this.finishTimelineRound(roomId)
       }
     }

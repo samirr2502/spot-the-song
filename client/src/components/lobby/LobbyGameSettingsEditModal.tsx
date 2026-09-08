@@ -29,6 +29,9 @@ export function LobbyGameSettingsEditModal({
 }: LobbyGameSettingsEditModalProps) {
   const [guessFields, setGuessFields] = useState<GuessFields>({ ...settings.guessFields })
   const [roundCount, setRoundCount] = useState(String(settings.roundCount))
+  const [cardsToWin, setCardsToWin] = useState(
+    String(settings.cardsToWin ?? settings.roundCount),
+  )
   const [clipDurationSeconds, setClipDurationSeconds] = useState(settings.clipDurationSeconds)
   const [extraSeconds, setExtraSeconds] = useState(String(settings.guessTimerSeconds ?? 0))
   const [singTimerSeconds, setSingTimerSeconds] = useState(settings.singTimerSeconds ?? 45)
@@ -43,6 +46,7 @@ export function LobbyGameSettingsEditModal({
     if (!open) return
     setGuessFields({ ...settings.guessFields })
     setRoundCount(String(settings.roundCount))
+    setCardsToWin(String(settings.cardsToWin ?? settings.roundCount))
     setClipDurationSeconds(settings.clipDurationSeconds)
     setExtraSeconds(String(settings.guessTimerSeconds ?? 0))
     setSingTimerSeconds(settings.singTimerSeconds ?? 45)
@@ -60,6 +64,15 @@ export function LobbyGameSettingsEditModal({
       return { ...base, singTimerSeconds }
     }
 
+    if (isTimeline) {
+      return {
+        ...base,
+        cardsToWin: Number.parseInt(cardsToWin, 10) || 1,
+        clipDurationSeconds,
+        guessTimerSeconds: parseExtraSeconds(extraSeconds),
+      }
+    }
+
     return {
       ...base,
       clipDurationSeconds,
@@ -69,10 +82,12 @@ export function LobbyGameSettingsEditModal({
     settings,
     guessFields,
     roundCount,
+    cardsToWin,
     clipDurationSeconds,
     extraSeconds,
     singTimerSeconds,
     isSingAlong,
+    isTimeline,
   ])
 
   function toggleField(field: keyof GuessFields) {
@@ -149,15 +164,27 @@ export function LobbyGameSettingsEditModal({
 
         {!isSingAlong ? (
           <>
-            <SketchInput
-              label="Number of rounds"
-              name="roundCount"
-              type="number"
-              min={1}
-              max={20}
-              value={roundCount}
-              onChange={(event) => setRoundCount(event.target.value)}
-            />
+            {isTimeline ? (
+              <SketchInput
+                label="Cards to win"
+                name="cardsToWin"
+                type="number"
+                min={1}
+                max={20}
+                value={cardsToWin}
+                onChange={(event) => setCardsToWin(event.target.value)}
+              />
+            ) : (
+              <SketchInput
+                label="Number of rounds"
+                name="roundCount"
+                type="number"
+                min={1}
+                max={20}
+                value={roundCount}
+                onChange={(event) => setRoundCount(event.target.value)}
+              />
+            )}
             <ExtraTimeAfterClipField
               clipDurationSeconds={clipDurationSeconds}
               extraSeconds={extraSeconds}

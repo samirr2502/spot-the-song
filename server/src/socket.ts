@@ -309,6 +309,26 @@ export function attachSocketHandlers(httpServer: HttpServer, clientOrigin: strin
       }
 
       emitRoomState(io, result.room)
+      if (result.roundResults) {
+        io.to(roomId).emit('server:round-results', result.roundResults)
+      }
+      callback({ ok: true })
+    })
+
+    socket.on('client:challenge-timeline-placement', (callback) => {
+      const { playerId, roomId } = socket.data
+      if (!playerId || !roomId) {
+        callback({ ok: false, message: 'You are not in a room.' })
+        return
+      }
+
+      const result = roomManager.challengeTimelinePlacement(roomId, playerId)
+      if (!result.ok) {
+        callback(result)
+        return
+      }
+
+      emitRoomState(io, result.room)
       callback({ ok: true })
     })
 

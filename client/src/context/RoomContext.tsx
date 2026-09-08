@@ -51,6 +51,7 @@ type RoomContextValue = {
   submitRating: (payload: RatingPayload) => Promise<boolean>
   placeCard: (payload: PlaceCardPayload) => Promise<boolean>
   submitTimelineBonus: (payload: TimelineBonusPayload) => Promise<boolean>
+  challengeTimelinePlacement: () => Promise<boolean>
   hostStartRating: () => Promise<boolean>
   turnGuessDone: () => Promise<boolean>
   continueAfterResults: () => Promise<boolean>
@@ -477,6 +478,27 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     [socket],
   )
 
+  const challengeTimelinePlacement = useCallback(async (): Promise<boolean> => {
+    if (!socket) return false
+
+    setBusy(true)
+    setError(null)
+
+    return new Promise((resolve) => {
+      socket.emit('client:challenge-timeline-placement', (result) => {
+        setBusy(false)
+
+        if (!result.ok) {
+          setError(result.message)
+          resolve(false)
+          return
+        }
+
+        resolve(true)
+      })
+    })
+  }, [socket])
+
   const hostStartRating = useCallback(async (): Promise<boolean> => {
     if (!socket) return false
 
@@ -641,6 +663,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       submitRating,
       placeCard,
       submitTimelineBonus,
+      challengeTimelinePlacement,
       hostStartRating,
       turnGuessDone,
       continueAfterResults,
@@ -667,6 +690,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       submitRating,
       placeCard,
       submitTimelineBonus,
+      challengeTimelinePlacement,
       hostStartRating,
       turnGuessDone,
       continueAfterResults,

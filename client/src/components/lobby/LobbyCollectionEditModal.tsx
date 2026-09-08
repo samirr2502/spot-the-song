@@ -53,11 +53,13 @@ export function LobbyCollectionEditModal({
       const result = await previewMusicLink(spotifyUrl)
       setPreview(result)
 
-      const minimumTracks = isTimeline ? settings.roundCount + 1 : settings.roundCount
+      const minimumTracks = isTimeline
+        ? settings.cardsToWin ?? settings.roundCount
+        : settings.roundCount
       if (result.totalTracks < minimumTracks) {
         setPreviewError(
           isTimeline
-            ? `Only ${result.totalTracks} tracks — need at least ${minimumTracks} for starters and rounds.`
+            ? `Only ${result.totalTracks} tracks — need at least ${minimumTracks} for starter and earned cards.`
             : `Only ${result.totalTracks} tracks — lower rounds to ${settings.roundCount} or fewer.`,
         )
       }

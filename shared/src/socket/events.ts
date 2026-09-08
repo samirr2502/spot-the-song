@@ -98,6 +98,7 @@ export type ClientToServerEvents = {
     payload: TimelineBonusPayload,
     callback: (result: ActionResult) => void,
   ) => void
+  'client:challenge-timeline-placement': (callback: (result: ActionResult) => void) => void
   'client:continue-after-results': (callback: (result: ActionResult) => void) => void
   'client:host-start-rating': (callback: (result: ActionResult) => void) => void
   'client:turn-guess-done': (callback: (result: ActionResult) => void) => void

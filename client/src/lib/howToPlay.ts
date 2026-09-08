@@ -59,11 +59,11 @@ export const HOW_TO_PLAY_MODES: HowToPlayMode[] = [
     title: 'Timeline',
     tagline: 'Place songs in chronological order on your personal timeline.',
     steps: [
-      'Everyone starts with one revealed starter song on their timeline.',
-      'On your turn, listen to a hidden-year clip.',
-      'Place the card before, between, or after your existing cards.',
-      'Optional title/artist guesses can earn bonus points.',
-      'Correct chronological placement keeps the card and scores points.',
+      'Everyone starts with one revealed starter song and 3 coins.',
+      'On your turn, listen to a hidden-year clip and place the card on your timeline.',
+      'Optional title/artist guesses earn +1 coin each (and bonus points if placement is correct).',
+      'After placement locks, other players can spend 2 coins to challenge before the reveal.',
+      'If a challenge succeeds on a wrong placement, the challenger gets the card. First to collect the target number of cards wins — points break ties.',
     ],
   },
 ]

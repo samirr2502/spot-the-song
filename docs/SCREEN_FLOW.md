@@ -139,20 +139,23 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A[Game start — each player gets starter card] --> B[Announce active player]
+  A[Game start — starter card + 3 coins each] --> B[Announce active player]
   B --> C[Play hidden-year track]
-  C --> D[Drag card to timeline slot]
+  C --> D[Place card on timeline]
   D --> E[Optional title/artist bonus guess]
-  E --> F[Reveal year]
-  F --> G{Chronologically correct?}
-  G -->|Yes| H[Keep card + points]
-  G -->|No| I[Discard / no placement points]
-  H --> J[Round results]
-  I --> J
-  J --> K{More turns?}
-  K -->|Yes| L[Next active player]
-  L --> B
-  K -->|No| M[Final results — most cards / points]
+  E --> F[Challenge window — spend 2 coins to challenge]
+  F --> G[Reveal year]
+  G --> H{Placement correct?}
+  H -->|Yes| I[Card stays with active player]
+  H -->|No + challenged| J[Card goes to challenger at correct slot]
+  H -->|No + unchallenged| K[Card discarded]
+  I --> L[Round results + coin updates]
+  J --> L
+  K --> L
+  L --> M{Someone reached cards to win?}
+  M -->|No| N[Next active player]
+  N --> B
+  M -->|Yes| O[Final results — cards + points]
 ```
 
 ---

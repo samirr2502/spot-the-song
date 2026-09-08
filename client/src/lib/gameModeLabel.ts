@@ -62,8 +62,10 @@ export function getGameSettingsSummary(settings: GameSettings): string {
           : ''
 
   if (settings.playMode === 'turns' && settings.turnGame === 'timeline') {
+    const cardsToWin = settings.cardsToWin ?? settings.roundCount
     const bonus = formatGuessFields(settings.guessFields)
-    return bonus ? `${rounds} · ${clip}${extraLabel} · ${bonus} bonus` : `${rounds} · ${clip}${extraLabel}`
+    const target = `${cardsToWin} card${cardsToWin === 1 ? '' : 's'} to win`
+    return bonus ? `${target} · ${clip}${extraLabel} · ${bonus} bonus` : `${target} · ${clip}${extraLabel}`
   }
 
   const fields = formatGuessFields(settings.guessFields)

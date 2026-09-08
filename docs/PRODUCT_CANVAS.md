@@ -84,11 +84,13 @@ One active player per round. Three sub-modes:
 
 ### Timeline round
 
-1. Each player starts with one revealed song/year on personal timeline.
+1. Each player starts with one revealed starter song/year on their timeline and **3 coins**.
 2. On turn: random track plays (year hidden).
-3. Player drags card before/between/after existing cards.
-4. Year reveals; server validates chronological placement.
-5. Correct placement keeps card + points; optional title/artist bonus guesses.
+3. Active player places the card before/between/after existing cards.
+4. Optional title/artist guesses earn **+1 coin each** (and bonus points if placement is correct).
+5. After placement locks, other players have a timed **challenge window** — first challenger spends **2 coins**.
+6. Reveal: correct placement keeps the card on the active timeline; wrong placement transfers the card to a successful challenger at the correct chronological slot; otherwise the card is discarded.
+7. Game ends when a player reaches **cards to win** (including starter) or the track pool is exhausted. Points break ties.
 
 ---
 
@@ -119,9 +121,12 @@ One active player per round. Three sub-modes:
 
 | Component | Rule |
 |-----------|------|
-| Correct placement | Base placement points |
-| Title bonus | Optional normalized match |
-| Artist bonus | Optional normalized match |
+| Win condition | First player to reach `cardsToWin` cards on timeline (starter counts) |
+| Correct placement | Base placement points + keep card |
+| Title bonus | Optional normalized match (+50 pts if placement correct; +1 coin always) |
+| Artist bonus | Optional normalized match (+50 pts if placement correct; +1 coin always) |
+| Challenge | Spend 2 coins during challenge window; if placement wrong, challenger gets card |
+| Tiebreaker | Total points |
 
 ### Answer matching (v1)
 

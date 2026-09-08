@@ -1,11 +1,14 @@
 import type { GuessFields } from '../types/game.js'
-import type { PlayerRoundResult } from '../types/round.js'
-import type { TimelineBonusPayload } from '../types/timeline.js'
+import type { PlayerRoundResult, TimelineCoinChange } from '../types/round.js'
+import type { TimelineBonusPayload, TimelineCardStored } from '../types/timeline.js'
 import type { Track } from '../types/track.js'
 import { matchField } from './matching.js'
 
 export const TIMELINE_PLACEMENT_POINTS = 100
 export const TIMELINE_BONUS_POINTS = 50
+export const TIMELINE_STARTING_COINS = 3
+export const TIMELINE_CHALLENGE_COST = 2
+export const TIMELINE_COIN_PER_BONUS_FIELD = 1
 
 export function isTimelinePlacementCorrect(
   releaseYear: number | null,
@@ -27,6 +30,67 @@ export function describeInsertPosition(insertIndex: number, timelineLength: numb
   if (insertIndex <= 0) return 'before your earliest card'
   if (insertIndex >= timelineLength) return 'after your latest card'
   return 'between your cards'
+}
+
+export function findCorrectInsertIndex(
+  releaseYear: number | null,
+  timelineYears: number[],
+): number {
+  if (releaseYear === null) return timelineYears.length
+
+  for (let index = 0; index <= timelineYears.length; index++) {
+    if (isTimelinePlacementCorrect(releaseYear, timelineYears, index)) {
+      return index
+    }
+  }
+
+  return timelineYears.length
+}
+
+export function countTimelineCards(timeline: TimelineCardStored[]): number {
+  return timeline.length
+}
+
+export function timelineYearsFromTrackIds(
+  trackIds: string[],
+  getYear: (trackId: string) => number | null | undefined,
+): number[] {
+  return trackIds
+    .map((trackId) => getYear(trackId))
+    .filter((year): year is number => year != null)
+}
+
+export function awardTimelineBonusCoins(
+  activePlayerId: string,
+  track: Track,
+  bonusAnswers: TimelineBonusPayload | null,
+  guessFields: GuessFields,
+): TimelineCoinChange[] {
+  const changes: TimelineCoinChange[] = []
+
+  if (guessFields.title && bonusAnswers?.title?.trim()) {
+    const guess = bonusAnswers.title.trim()
+    if (matchField('title', guess, track)) {
+      changes.push({
+        playerId: activePlayerId,
+        delta: TIMELINE_COIN_PER_BONUS_FIELD,
+        reason: 'bonus-title',
+      })
+    }
+  }
+
+  if (guessFields.artist && bonusAnswers?.artist?.trim()) {
+    const guess = bonusAnswers.artist.trim()
+    if (matchField('artist', guess, track)) {
+      changes.push({
+        playerId: activePlayerId,
+        delta: TIMELINE_COIN_PER_BONUS_FIELD,
+        reason: 'bonus-artist',
+      })
+    }
+  }
+
+  return changes
 }
 
 export function scoreTimelineRound(
@@ -72,11 +136,92 @@ export function scoreTimelineRound(
   }
 }
 
-export function timelineYearsFromTrackIds(
-  trackIds: string[],
-  getYear: (trackId: string) => number | null | undefined,
-): number[] {
-  return trackIds
-    .map((trackId) => getYear(trackId))
-    .filter((year): year is number => year != null)
+export type TimelineTurnResolution = {
+  placementCorrect: boolean
+  cardAwardedTo: string | null
+  cardInsertIndex: number | null
+  coinChanges: TimelineCoinChange[]
+  playerResult: PlayerRoundResult
+}
+
+export function resolveTimelineTurn(
+  activePlayerId: string,
+  challengerPlayerId: string | null,
+  track: Track,
+  activeTimelineYears: number[],
+  challengerTimelineYears: number[] | null,
+  insertIndex: number | null,
+  bonusAnswers: TimelineBonusPayload | null,
+  guessFields: GuessFields,
+): TimelineTurnResolution {
+  const placementCorrect =
+    insertIndex !== null && isTimelinePlacementCorrect(track.year, activeTimelineYears, insertIndex)
+
+  const coinChanges = awardTimelineBonusCoins(
+    activePlayerId,
+    track,
+    bonusAnswers,
+    guessFields,
+  )
+
+  if (challengerPlayerId) {
+    coinChanges.push({
+      playerId: challengerPlayerId,
+      delta: -TIMELINE_CHALLENGE_COST,
+      reason: 'challenge-cost',
+    })
+  }
+
+  let cardAwardedTo: string | null = null
+  let cardInsertIndex: number | null = null
+
+  if (placementCorrect) {
+    cardAwardedTo = activePlayerId
+    cardInsertIndex = insertIndex
+  } else if (challengerPlayerId && challengerTimelineYears) {
+    cardAwardedTo = challengerPlayerId
+    cardInsertIndex = findCorrectInsertIndex(track.year, challengerTimelineYears)
+  }
+
+  const playerResult = scoreTimelineRound(
+    activePlayerId,
+    track,
+    placementCorrect,
+    bonusAnswers,
+    guessFields,
+  )
+
+  return {
+    placementCorrect,
+    cardAwardedTo,
+    cardInsertIndex,
+    coinChanges,
+    playerResult,
+  }
+}
+
+export function getTimelineCardCounts(
+  playerIds: string[],
+  timelines: Map<string, TimelineCardStored[]>,
+): Record<string, number> {
+  const counts: Record<string, number> = {}
+  for (const playerId of playerIds) {
+    counts[playerId] = countTimelineCards(timelines.get(playerId) ?? [])
+  }
+  return counts
+}
+
+export function getTimelineWinners(
+  playerIds: string[],
+  timelines: Map<string, TimelineCardStored[]>,
+  cardsToWin: number,
+): string[] {
+  const winners: string[] = []
+  for (const playerId of playerIds) {
+    const count = countTimelineCards(timelines.get(playerId) ?? [])
+    if (count >= cardsToWin) {
+      winners.push(playerId)
+    }
+  }
+  return winners
 }

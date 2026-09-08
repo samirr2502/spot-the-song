@@ -21,6 +21,10 @@ export type GameSettings = {
   turnGame?: TurnGame
   guessFields: GuessFields
   roundCount: number
+  /** Timeline mode: total cards on timeline (including starter) needed to win. */
+  cardsToWin?: number
+  /** Timeline mode: seconds for opponents to challenge after placement lock. */
+  challengeTimerSeconds?: number
   clipDurationSeconds: number
   guessTimerSeconds?: number
   singTimerSeconds?: number
@@ -40,6 +44,7 @@ export type RoundPhase =
   | 'clip-playing'
   | 'playing'
   | 'answering'
+  | 'challenge'
   | 'voting'
   | 'rating'
   | 'reveal'
@@ -68,6 +73,10 @@ export type CurrentRound = {
   /** Blind Spotify link for the active singer — no title in the UI. */
   performerSpotifyUrl?: string
   submittedPlayerIds?: string[]
+  /** Timeline challenge window end (epoch ms). */
+  challengeEndsAt?: number | null
+  /** Timeline: player who spent coins to challenge this placement. */
+  challengerPlayerId?: string | null
 }
 
 export type GameRoom = {
@@ -87,6 +96,8 @@ export type GameRoom = {
   scores: Record<string, number>
   readyPlayerIds?: string[]
   timelines?: Record<string, TimelineCardPublic[]>
+  /** Timeline mode: coin balance per player id. */
+  coins?: Record<string, number>
 }
 
 export const DEFAULT_GUESS_FIELDS: GuessFields = {
@@ -96,10 +107,15 @@ export const DEFAULT_GUESS_FIELDS: GuessFields = {
   year: false,
 }
 
+export const DEFAULT_TIMELINE_CARDS_TO_WIN = 5
+export const DEFAULT_TIMELINE_CHALLENGE_TIMER_SECONDS = 15
+
 export const DEFAULT_GAME_SETTINGS: GameSettings = {
   playMode: 'all-in',
   guessFields: DEFAULT_GUESS_FIELDS,
   roundCount: 5,
+  cardsToWin: DEFAULT_TIMELINE_CARDS_TO_WIN,
+  challengeTimerSeconds: DEFAULT_TIMELINE_CHALLENGE_TIMER_SECONDS,
   clipDurationSeconds: 30,
   guessTimerSeconds: 0,
   singTimerSeconds: 45,

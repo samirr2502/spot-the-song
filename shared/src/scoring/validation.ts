@@ -48,12 +48,15 @@ export function validateSingAlongSettings(settings: {
 }
 
 export function validateTimelineSettings(settings: {
-  roundCount: number
+  cardsToWin?: number
+  roundCount?: number
   clipDurationSeconds: number
   guessTimerSeconds?: number
+  challengeTimerSeconds?: number
 }): string | null {
-  if (settings.roundCount < 1 || settings.roundCount > 20) {
-    return 'Choose between 1 and 20 rounds.'
+  const cardsToWin = settings.cardsToWin ?? settings.roundCount ?? 5
+  if (cardsToWin < 1 || cardsToWin > 20) {
+    return 'Choose between 1 and 20 cards to win.'
   }
 
   if (settings.clipDurationSeconds !== 15 && settings.clipDurationSeconds !== 30) {
@@ -63,6 +66,11 @@ export function validateTimelineSettings(settings: {
   const guessTimer = settings.guessTimerSeconds ?? 0
   if (guessTimer < 0 || guessTimer > 120) {
     return 'Extra placement time must be between 0 and 120 seconds.'
+  }
+
+  const challengeTimer = settings.challengeTimerSeconds ?? 15
+  if (challengeTimer < 5 || challengeTimer > 60) {
+    return 'Challenge window must be between 5 and 60 seconds.'
   }
 
   return null
