@@ -1,4 +1,5 @@
 import type {
+  HostClipPlayPayload,
   RoundAnsweringPayload,
   RoundClipEndedPayload,
   RoundRevealPayload,
@@ -10,6 +11,7 @@ import type {
 } from './spotifyEvents.js'
 
 export type {
+  HostClipPlayPayload,
   RoundAnsweringPayload,
   RoundClipEndedPayload,
   RoundRevealPayload,
@@ -41,6 +43,8 @@ export type JoinRoomResult =
 
 export type ActionResult = { ok: true } | { ok: false; message: string }
 
+export type RoomStateActionResult = { ok: true; room: GameRoom } | { ok: false; message: string }
+
 export type ServerToClientEvents = {
   'server:connected': (payload: { serverTime: number }) => void
   'server:room-state': (room: GameRoom) => void
@@ -48,11 +52,13 @@ export type ServerToClientEvents = {
   'server:player-left': (payload: { playerId: string }) => void
   'server:phase-changed': (payload: { status: GameRoom['status'] }) => void
   'server:round-results': (payload: RoundResultsPayload) => void
+  'server:host-play-clip': (payload: HostClipPlayPayload) => void
   'server:spotify-play-track': (payload: SpotifyPlayTrackPayload) => void
   'server:round-clip-ended': (payload: RoundClipEndedPayload) => void
   'server:round-started': (payload: RoundStartedPayload) => void
   'server:round-answering': (payload: RoundAnsweringPayload) => void
   'server:round-reveal': (payload: RoundRevealPayload) => void
+  'server:room-closed': (payload: { message: string }) => void
   'server:error': (payload: { message: string }) => void
 }
 
@@ -93,6 +99,8 @@ export type ClientToServerEvents = {
     callback: (result: ActionResult) => void,
   ) => void
   'client:continue-after-results': (callback: (result: ActionResult) => void) => void
+  'client:host-start-rating': (callback: (result: ActionResult) => void) => void
+  'client:turn-guess-done': (callback: (result: ActionResult) => void) => void
   'client:spotify-player-ready': (
     payload: SpotifyPlayerReadyPayload,
     callback?: (result: ActionResult) => void,
@@ -107,7 +115,13 @@ export type ClientToServerEvents = {
   ) => void
   'client:spotify-retry-playback': (callback: (result: ActionResult) => void) => void
   'client:play-again': (callback: (result: ActionResult) => void) => void
+  'client:return-to-lobby': (callback: (result: RoomStateActionResult) => void) => void
+  'client:update-lobby': (
+    payload: { settings: GameSettings; spotifyUrl?: string },
+    callback: (result: ActionResult) => void,
+  ) => void
   'client:leave-room': (callback?: (result: ActionResult) => void) => void
+  'client:close-room': (callback?: (result: ActionResult) => void) => void
 }
 
 export type InterServerEvents = Record<string, never>

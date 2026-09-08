@@ -1,5 +1,6 @@
 import { useParams } from 'react-router-dom'
 import { RoomSessionGate } from '../components/RoomSessionGate'
+import { HostClipProvider } from '../context/HostClipContext'
 import { SpotifyPlaybackProvider } from '../context/SpotifyPlaybackContext'
 import { useRoom } from '../context/RoomContext'
 import { AllInPlayPage } from './AllInPlayPage'
@@ -25,14 +26,29 @@ function GamePlayRouter() {
   return <AllInPlayPage />
 }
 
+function GamePlayShell() {
+  const { room } = useRoom()
+  const useFullPlayback = room?.settings.playbackMode === 'spotify-full'
+
+  if (useFullPlayback) {
+    return (
+      <SpotifyPlaybackProvider>
+        <GamePlayRouter />
+      </SpotifyPlaybackProvider>
+    )
+  }
+
+  return <GamePlayRouter />
+}
+
 export function GamePlayPage() {
   const { code = '' } = useParams()
 
   return (
     <RoomSessionGate roomCode={code} loadingMessage="Syncing game…">
-      <SpotifyPlaybackProvider>
-        <GamePlayRouter />
-      </SpotifyPlaybackProvider>
+      <HostClipProvider>
+        <GamePlayShell />
+      </HostClipProvider>
     </RoomSessionGate>
   )
 }

@@ -48,16 +48,18 @@ export function scoreTimelineRound(
     })
 
     if (guessFields.title && bonusAnswers?.title?.trim()) {
-      const correct = matchField('title', bonusAnswers.title, track)
+      const guess = bonusAnswers.title.trim()
+      const correct = matchField('title', guess, track)
       const points = correct ? TIMELINE_BONUS_POINTS : 0
-      fieldScores.push({ field: 'title', correct, points })
+      fieldScores.push({ field: 'title', correct, points, answer: guess })
       totalRoundPoints += points
     }
 
     if (guessFields.artist && bonusAnswers?.artist?.trim()) {
-      const correct = matchField('artist', bonusAnswers.artist, track)
+      const guess = bonusAnswers.artist.trim()
+      const correct = matchField('artist', guess, track)
       const points = correct ? TIMELINE_BONUS_POINTS : 0
-      fieldScores.push({ field: 'artist', correct, points })
+      fieldScores.push({ field: 'artist', correct, points, answer: guess })
       totalRoundPoints += points
     }
   }

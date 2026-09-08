@@ -7,11 +7,14 @@ import {
   type GuessFields,
   hasAtLeastOneGuessField,
 } from '@spot-the-song/shared'
+import { ClipDurationFieldset } from '../components/ClipDurationFieldset'
+import { ExtraTimeAfterClipField, parseExtraSeconds } from '../components/ExtraTimeAfterClipField'
+import { MusicImportPreviewCard } from '../components/MusicImportPreviewCard'
 import { SketchButton, SketchCard, SketchCheckbox, SketchDivider, SketchInput } from '../components/sketch'
-import { SpotifyConnectSection } from '../components/SpotifyConnectSection'
 import { useRoom } from '../context/RoomContext'
 import { useSocketContext } from '../context/SocketContext'
 import { previewMusicLink, type MusicPreviewResult } from '../lib/musicApi'
+import { validateCollectionForLobby } from '../lib/lobbySetupValidation'
 
 export function AllInSetupPage() {
   const navigate = useNavigate()
@@ -22,21 +25,23 @@ export function AllInSetupPage() {
   const [guessFields, setGuessFields] = useState<GuessFields>({ ...DEFAULT_GUESS_FIELDS })
   const [roundCount, setRoundCount] = useState(String(DEFAULT_GAME_SETTINGS.roundCount))
   const [clipDuration, setClipDuration] = useState(String(DEFAULT_GAME_SETTINGS.clipDurationSeconds))
-  const [guessTimer, setGuessTimer] = useState(String(DEFAULT_GAME_SETTINGS.guessTimerSeconds ?? 30))
+  const [guessTimer, setGuessTimer] = useState(String(DEFAULT_GAME_SETTINGS.guessTimerSeconds ?? 0))
   const [localError, setLocalError] = useState<string | null>(null)
   const [preview, setPreview] = useState<MusicPreviewResult | null>(null)
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
+
+  const clipDurationSeconds = Number.parseInt(clipDuration, 10) || 15
 
   const settings: GameSettings = useMemo(
     () => ({
       playMode: 'all-in',
       guessFields,
       roundCount: Number.parseInt(roundCount, 10) || 1,
-      clipDurationSeconds: Number.parseInt(clipDuration, 10) || 15,
-      guessTimerSeconds: Number.parseInt(guessTimer, 10) || 30,
+      clipDurationSeconds,
+      guessTimerSeconds: parseExtraSeconds(guessTimer),
     }),
-    [guessFields, roundCount, clipDuration, guessTimer],
+    [guessFields, roundCount, clipDurationSeconds, guessTimer],
   )
 
   function toggleField(field: keyof GuessFields) {
@@ -46,6 +51,12 @@ export function AllInSetupPage() {
   async function handlePreview() {
     setPreviewError(null)
     setPreview(null)
+
+    if (!spotifyUrl.trim()) {
+      setPreviewError('Paste a Spotify playlist or album link first.')
+      return
+    }
+
     setPreviewLoading(true)
 
     try {
@@ -74,7 +85,13 @@ export function AllInSetupPage() {
       return
     }
 
-    const result = await createRoom(settings, spotifyUrl.trim() || undefined)
+    const collectionError = validateCollectionForLobby(spotifyUrl, preview)
+    if (collectionError) {
+      setLocalError(collectionError)
+      return
+    }
+
+    const result = await createRoom(settings, spotifyUrl.trim())
     if (result) {
       navigate(`/room/${result.code}`)
     }
@@ -108,30 +125,18 @@ export function AllInSetupPage() {
             type="button"
             variant="ghost"
             fullWidth
-            disabled={previewLoading || busy}
+            disabled={previewLoading || busy || !spotifyUrl.trim()}
             onClick={handlePreview}
           >
-            {previewLoading ? 'Loading…' : spotifyUrl.trim() ? 'Check link' : 'Preview demo playlist'}
+            {previewLoading ? 'Loading…' : 'Check link'}
           </SketchButton>
 
-          {preview ? (
-            <SketchCard tiltSeed="preview" className="music-preview">
-              <p className="music-preview__name">{preview.name}</p>
-              <p className="music-preview__meta">
-                {preview.totalTracks} tracks · {preview.playableCount} playable on Spotify
-                {preview.skippedCount > 0 ? ` · ${preview.skippedCount} without preview` : ''}
-              </p>
-              <p className="music-preview__source">
-                {preview.source === 'spotify' ? 'Spotify' : 'Demo playlist'}
-              </p>
-            </SketchCard>
-          ) : null}
+          {preview ? <MusicImportPreviewCard preview={preview} tiltSeed="preview" /> : null}
 
           {previewError ? <p className="form-error">{previewError}</p> : null}
 
-          <SpotifyConnectSection
-            returnTo="/create/all-in"
-            clipDurationSeconds={Number.parseInt(clipDuration, 10) || 30}
+          <ClipDurationFieldset
+            clipDurationSeconds={clipDurationSeconds}
             onClipDurationChange={(seconds) => setClipDuration(String(seconds))}
           />
 
@@ -173,14 +178,11 @@ export function AllInSetupPage() {
             onChange={(event) => setRoundCount(event.target.value)}
           />
 
-          <SketchInput
-            label="Answer time (seconds)"
-            name="guessTimer"
-            type="number"
-            min={10}
-            max={120}
-            value={guessTimer}
-            onChange={(event) => setGuessTimer(event.target.value)}
+          <ExtraTimeAfterClipField
+            clipDurationSeconds={clipDurationSeconds}
+            extraSeconds={guessTimer}
+            onExtraSecondsChange={setGuessTimer}
+            purposeLabel="answer"
           />
 
           {displayError ? <p className="form-error">{displayError}</p> : null}
@@ -189,7 +191,11 @@ export function AllInSetupPage() {
             <p className="form-error">Wait for Socket: Live in the corner before creating a lobby.</p>
           ) : null}
 
-          <SketchButton type="submit" fullWidth disabled={busy || previewLoading || connectionState !== 'connected'}>
+          <SketchButton
+            type="submit"
+            fullWidth
+            disabled={busy || previewLoading || connectionState !== 'connected' || !preview}
+          >
             {busy ? 'Loading music & creating…' : 'Create lobby'}
           </SketchButton>
         </form>

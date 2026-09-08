@@ -7,6 +7,7 @@ type SketchSongCardProps = {
   hiddenYear?: boolean
   compact?: boolean
   showSpotifyLink?: boolean
+  jamHint?: boolean
 }
 
 export function SketchSongCard({
@@ -14,6 +15,7 @@ export function SketchSongCard({
   hiddenYear,
   compact,
   showSpotifyLink = false,
+  jamHint = false,
 }: SketchSongCardProps) {
   return (
     <SketchCard className={`sketch-song-card${compact ? ' sketch-song-card--compact' : ''}`} tiltSeed={track.title}>
@@ -30,13 +32,18 @@ export function SketchSongCard({
           <p className="sketch-song-card__year sketch-song-card__year--hidden">????</p>
         )}
         {showSpotifyLink && track.spotifyUrl ? (
-          <SketchButton
-            variant="ghost"
-            fullWidth
-            onClick={() => window.open(track.spotifyUrl, '_blank', 'noopener,noreferrer')}
-          >
-            Open in Spotify ↗
-          </SketchButton>
+          <>
+            <SketchButton
+              variant="ghost"
+              fullWidth
+              onClick={() => window.open(track.spotifyUrl, '_blank', 'noopener,noreferrer')}
+            >
+              Play full song on Spotify ↗
+            </SketchButton>
+            {jamHint ? (
+              <p className="clip-player__hint">Jam it before the next round.</p>
+            ) : null}
+          </>
         ) : null}
       </div>
     </SketchCard>

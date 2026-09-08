@@ -5,8 +5,13 @@ type SketchRadioProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> & {
   label: string
 }
 
+function sketchRadioId(name: string | undefined, value: string | number | readonly string[] | undefined, label: string) {
+  const slug = (part: string) => part.trim().toLowerCase().replace(/\s+/g, '-')
+  return [name ?? 'radio', value ?? label].map((part) => slug(String(part))).join('-')
+}
+
 export function SketchRadio({ label, className, id, ...props }: SketchRadioProps) {
-  const radioId = id || `${props.name}-${props.value}` || label
+  const radioId = id ?? sketchRadioId(props.name, props.value, label)
 
   return (
     <label className={sketchClass('sketch-radio', className)} htmlFor={radioId}>

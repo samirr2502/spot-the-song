@@ -1,5 +1,5 @@
 import type { Server as HttpServer } from 'node:http'
-import type { GameRoom, SpotifyPlayTrackPayload } from '@spot-the-song/shared'
+import type { GameRoom, HostClipPlayPayload, SpotifyPlayTrackPayload } from '@spot-the-song/shared'
 import { Server } from 'socket.io'
 import type {
   ClientToServerEvents,
@@ -58,17 +58,21 @@ async function attachPlayerToRoom(
   emitRoomState(io, room)
 }
 
-function emitToPlayer(
+function emitToHost<E extends 'server:host-play-clip' | 'server:spotify-play-track'>(
   io: Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
   roomId: string,
   playerId: string,
-  event: 'server:spotify-play-track',
-  payload: SpotifyPlayTrackPayload,
+  event: E,
+  payload: E extends 'server:host-play-clip' ? HostClipPlayPayload : SpotifyPlayTrackPayload,
 ) {
   void io.in(roomId).fetchSockets().then((sockets) => {
     for (const target of sockets) {
       if (target.data.playerId === playerId) {
-        target.emit(event, payload)
+        if (event === 'server:host-play-clip') {
+          target.emit('server:host-play-clip', payload as HostClipPlayPayload)
+        } else {
+          target.emit('server:spotify-play-track', payload as SpotifyPlayTrackPayload)
+        }
       }
     }
   })
@@ -94,8 +98,11 @@ export function attachSocketHandlers(httpServer: HttpServer, clientOrigin: strin
       const room = roomManager.getPublicRoom(roomId)
       if (room) emitRoomState(io, room)
     },
+    onHostPlayClip: (roomId, hostPlayerId, payload) => {
+      emitToHost(io, roomId, hostPlayerId, 'server:host-play-clip', payload)
+    },
     onSpotifyPlayTrack: (roomId, hostPlayerId, payload) => {
-      emitToPlayer(io, roomId, hostPlayerId, 'server:spotify-play-track', payload)
+      emitToHost(io, roomId, hostPlayerId, 'server:spotify-play-track', payload)
     },
     onRoundClipEnded: (roomId, payload) => {
       io.to(roomId).emit('server:round-clip-ended', payload)
@@ -323,6 +330,40 @@ export function attachSocketHandlers(httpServer: HttpServer, clientOrigin: strin
       callback({ ok: true })
     })
 
+    socket.on('client:host-start-rating', (callback) => {
+      const { playerId, roomId } = socket.data
+      if (!playerId || !roomId) {
+        callback({ ok: false, message: 'You are not in a room.' })
+        return
+      }
+
+      const result = roomManager.hostStartRating(roomId, playerId)
+      if (!result.ok) {
+        callback(result)
+        return
+      }
+
+      emitRoomState(io, result.room)
+      callback({ ok: true })
+    })
+
+    socket.on('client:turn-guess-done', (callback) => {
+      const { playerId, roomId } = socket.data
+      if (!playerId || !roomId) {
+        callback({ ok: false, message: 'You are not in a room.' })
+        return
+      }
+
+      const result = roomManager.turnGuessPlayerDone(roomId, playerId)
+      if (!result.ok) {
+        callback(result)
+        return
+      }
+
+      emitRoomState(io, result.room)
+      callback({ ok: true })
+    })
+
     socket.on('client:play-again', (callback) => {
       const { playerId, roomId } = socket.data
       if (!playerId || !roomId) {
@@ -339,6 +380,45 @@ export function attachSocketHandlers(httpServer: HttpServer, clientOrigin: strin
       emitRoomState(io, result.room)
       io.to(roomId).emit('server:phase-changed', { status: result.room.status })
       callback({ ok: true })
+    })
+
+    socket.on('client:return-to-lobby', (callback) => {
+      const { playerId, roomId } = socket.data
+      if (!playerId || !roomId) {
+        callback({ ok: false, message: 'You are not in a room.' })
+        return
+      }
+
+      const result = roomManager.returnToLobby(roomId, playerId)
+      if (!result.ok) {
+        callback(result)
+        return
+      }
+
+      emitRoomState(io, result.room)
+      io.to(roomId).emit('server:phase-changed', { status: result.room.status })
+      callback({ ok: true, room: result.room })
+    })
+
+    socket.on('client:update-lobby', async (payload, callback) => {
+      const { playerId, roomId } = socket.data
+      if (!playerId || !roomId) {
+        callback({ ok: false, message: 'You are not in a room.' })
+        return
+      }
+
+      try {
+        const result = await roomManager.updateLobby(roomId, playerId, payload)
+        if (!result.ok) {
+          callback(result)
+          return
+        }
+
+        emitRoomState(io, result.room)
+        callback({ ok: true })
+      } catch (error) {
+        handleSocketError(callback, error)
+      }
     })
 
     socket.on('client:spotify-retry-playback', (callback) => {
@@ -389,6 +469,34 @@ export function attachSocketHandlers(httpServer: HttpServer, clientOrigin: strin
         emitRoomState(io, room)
         io.to(roomId).emit('server:player-left', { playerId })
       }
+
+      callback?.({ ok: true })
+    })
+
+    socket.on('client:close-room', (callback) => {
+      const { playerId, roomId } = socket.data
+
+      if (!playerId || !roomId) {
+        callback?.({ ok: false, message: 'Not in a room.' })
+        return
+      }
+
+      const result = roomManager.closeRoom(roomId, playerId)
+      if (!result.ok) {
+        callback?.(result)
+        return
+      }
+
+      io.to(roomId).emit('server:room-closed', { message: 'The host closed the room.' })
+
+      void io.in(roomId).fetchSockets().then((sockets) => {
+        for (const target of sockets) {
+          target.data.playerId = undefined
+          target.data.roomId = undefined
+          target.data.sessionToken = undefined
+          void target.leave(roomId)
+        }
+      })
 
       callback?.({ ok: true })
     })

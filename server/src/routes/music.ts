@@ -10,8 +10,7 @@ export function registerMusicRoutes(app: Express): void {
       const url = typeof req.body?.url === 'string' ? req.body.url.trim() : ''
 
       if (!url) {
-        const demo = await resolveMusicImport()
-        return res.json(toPreviewResult(demo))
+        return res.status(400).json({ error: 'Paste a Spotify playlist or album link.' })
       }
 
       if (!parseSpotifyUrl(url)) {

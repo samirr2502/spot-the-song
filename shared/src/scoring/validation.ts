@@ -23,9 +23,9 @@ export function validateGameSettings(settings: {
     return 'Song clip must be 15 or 30 seconds.'
   }
 
-  const guessTimer = settings.guessTimerSeconds ?? 30
-  if (guessTimer < 10 || guessTimer > 120) {
-    return 'Answer time must be between 10 and 120 seconds.'
+  const guessTimer = settings.guessTimerSeconds ?? 0
+  if (guessTimer < 0 || guessTimer > 120) {
+    return 'Extra time after the clip must be between 0 and 120 seconds.'
   }
 
   return null
@@ -33,20 +33,15 @@ export function validateGameSettings(settings: {
 
 export function validateSingAlongSettings(settings: {
   roundCount: number
-  clipDurationSeconds: number
   singTimerSeconds?: number
 }): string | null {
   if (settings.roundCount < 1 || settings.roundCount > 20) {
     return 'Choose between 1 and 20 rounds.'
   }
 
-  if (settings.clipDurationSeconds !== 15 && settings.clipDurationSeconds !== 30) {
-    return 'Song clip must be 15 or 30 seconds.'
-  }
-
   const singTimer = settings.singTimerSeconds ?? 45
-  if (singTimer < 15 || singTimer > 180) {
-    return 'Performance time must be between 15 and 180 seconds.'
+  if (![15, 30, 45, 60].includes(singTimer)) {
+    return 'Performance time must be 15, 30, 45, or 60 seconds.'
   }
 
   return null
@@ -65,9 +60,9 @@ export function validateTimelineSettings(settings: {
     return 'Song clip must be 15 or 30 seconds.'
   }
 
-  const guessTimer = settings.guessTimerSeconds ?? 30
-  if (guessTimer < 10 || guessTimer > 120) {
-    return 'Placement time must be between 10 and 120 seconds.'
+  const guessTimer = settings.guessTimerSeconds ?? 0
+  if (guessTimer < 0 || guessTimer > 120) {
+    return 'Extra placement time must be between 0 and 120 seconds.'
   }
 
   return null

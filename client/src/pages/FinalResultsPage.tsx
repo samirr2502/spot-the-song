@@ -1,4 +1,4 @@
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { RoomSessionGate } from '../components/RoomSessionGate'
 import { SketchAvatar, SketchButton, SketchCard, SketchDivider } from '../components/sketch'
 import { useRoom } from '../context/RoomContext'
@@ -7,7 +7,7 @@ import { useRoomStatusRedirect } from '../hooks/useRoomNavigation'
 function FinalResultsContent() {
   const navigate = useNavigate()
   const { code = '' } = useParams()
-  const { room, session, isHost, busy, playAgain, leaveRoom } = useRoom()
+  const { room, session, isHost, busy, error, playAgain, returnToLobby, leaveRoom } = useRoom()
 
   useRoomStatusRedirect(code, ['final-results'])
 
@@ -29,6 +29,14 @@ function FinalResultsContent() {
     if (ok) {
       navigate(`/room/${normalizedCode}/how-to-play`)
     }
+  }
+
+  async function handleReturnToLobby() {
+    if (isHost) {
+      const ok = await returnToLobby()
+      if (!ok) return
+    }
+    navigate(`/room/${normalizedCode}`)
   }
 
   async function handleExit() {
@@ -68,6 +76,8 @@ function FinalResultsContent() {
         </ol>
       </SketchCard>
 
+      {error ? <p className="form-error">{error}</p> : null}
+
       {isHost ? (
         <SketchButton fullWidth disabled={busy} onClick={handlePlayAgain}>
           Play again
@@ -80,11 +90,9 @@ function FinalResultsContent() {
         Exit
       </SketchButton>
 
-      <Link to="/home">
-        <SketchButton variant="ghost" fullWidth>
-          Home
-        </SketchButton>
-      </Link>
+      <SketchButton variant="ghost" fullWidth disabled={busy} onClick={handleReturnToLobby}>
+        Lobby
+      </SketchButton>
     </main>
   )
 }

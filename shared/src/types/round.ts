@@ -30,6 +30,8 @@ export type FieldScore = {
   field: GuessFieldKey
   correct: boolean
   points: number
+  /** What the player submitted — shown on results before/alongside the reveal card. */
+  answer?: string
 }
 
 export type PlayerRoundResult = {

@@ -1,18 +1,37 @@
 import { QRCodeSVG } from 'qrcode.react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { LobbyCollectionCard } from '../components/lobby/LobbyCollectionCard'
+import { LobbyCollectionEditModal } from '../components/lobby/LobbyCollectionEditModal'
+import { LobbyConfigBlock } from '../components/lobby/LobbyConfigBlock'
+import { LobbyGameSettingsEditModal } from '../components/lobby/LobbyGameSettingsEditModal'
+import { LobbyModeEditModal } from '../components/lobby/LobbyModeEditModal'
 import { RoomSessionGate } from '../components/RoomSessionGate'
-import { SpotifyConnectSection, useSpotifyConnected } from '../components/SpotifyConnectSection'
 import { SketchAvatar, SketchButton, SketchCard, SketchDivider } from '../components/sketch'
 import { useRoom } from '../context/RoomContext'
+import { getCollectionLabel, getCollectionSubtitle, getGameModeLabel, getGameSettingsSummary } from '../lib/gameModeLabel'
 import { buildJoinUrl } from '../lib/session'
 import { roomPathForStatus } from '../hooks/useRoomNavigation'
+import type { GameSettings } from '@spot-the-song/shared'
 
 function LobbyContent() {
   const navigate = useNavigate()
   const { code = '' } = useParams()
-  const { room, session, isHost, error, busy, startGame, leaveRoom, clearError } = useRoom()
-  const { connected: spotifyConnected, loading: spotifyLoading } = useSpotifyConnected()
+  const {
+    room,
+    session,
+    isHost,
+    error,
+    busy,
+    startGame,
+    leaveRoom,
+    updateLobby,
+    clearError,
+  } = useRoom()
+
+  const [modeModalOpen, setModeModalOpen] = useState(false)
+  const [collectionModalOpen, setCollectionModalOpen] = useState(false)
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false)
 
   const normalizedCode = code.toUpperCase()
   const joinUrl = buildJoinUrl(normalizedCode)
@@ -37,23 +56,67 @@ function LobbyContent() {
     navigate('/home')
   }
 
+  async function handleSaveMode(settings: GameSettings) {
+    clearError()
+    const ok = await updateLobby(settings)
+    if (ok) {
+      setModeModalOpen(false)
+    }
+  }
+
+  async function handleSaveCollection(spotifyUrl: string) {
+    clearError()
+    const ok = await updateLobby(room!.settings, spotifyUrl)
+    if (ok) {
+      setCollectionModalOpen(false)
+    }
+  }
+
+  async function handleSaveSettings(settings: GameSettings) {
+    clearError()
+    const ok = await updateLobby(settings)
+    if (ok) {
+      setSettingsModalOpen(false)
+    }
+  }
+
   if (!room || !session) return null
 
-  const needsSpotify =
-    room.settings.playMode === 'all-in' ||
-    (room.settings.playMode === 'turns' && room.settings.turnGame !== 'sing')
+  const modeLabel = getGameModeLabel(room.settings)
+  const collectionLabel = getCollectionLabel(room)
+  const collectionSubtitle = getCollectionSubtitle(room.trackPoolSize)
+  const settingsSummary = getGameSettingsSummary(room.settings)
+  const anyModalOpen = modeModalOpen || collectionModalOpen || settingsModalOpen
 
   return (
     <main className="page page--lobby page--fade-in">
-      <header className="page-header">
-        <p className="page-eyebrow">lobby</p>
-        <h1 className="page-title page-title--sm">Room {room.code}</h1>
-        <p className="page-subtitle">
-          {room.playlistName ? `"${room.playlistName}" · ` : ''}
-          {room.settings.playMode === 'all-in' ? 'All In mode' : 'Turns mode'}
-          {room.trackPoolSize ? ` · ${room.trackPoolSize} tracks` : ''}
-        </p>
+      <header className="page-header page-header--lobby">
+        <h1 className="page-title page-title--sm">Lobby</h1>
       </header>
+
+      <section className="lobby-config" aria-label="Game setup">
+        <div className="lobby-config__row">
+          <LobbyConfigBlock
+            sectionLabel="Game"
+            value={modeLabel}
+            canEdit={isHost}
+            onEdit={() => setModeModalOpen(true)}
+          />
+          <LobbyConfigBlock
+            sectionLabel="Game settings"
+            value={settingsSummary}
+            canEdit={isHost}
+            onEdit={() => setSettingsModalOpen(true)}
+          />
+        </div>
+        <LobbyCollectionCard
+          title={collectionLabel}
+          subtitle={collectionSubtitle}
+          tiltSeed={room.playlistName ?? room.code}
+          canEdit={isHost}
+          onEdit={() => setCollectionModalOpen(true)}
+        />
+      </section>
 
       <SketchCard className="lobby-code-card" tiltSeed={room.code}>
         <p className="lobby-code-card__label">Room code</p>
@@ -85,21 +148,10 @@ function LobbyContent() {
         </ul>
       </section>
 
-      {isHost && needsSpotify && !spotifyLoading && !spotifyConnected ? (
-        <SketchCard tiltSeed="lobby-spotify" className="lobby-wait-card">
-          <p>Connect Spotify before starting — playback runs on your device.</p>
-          <SpotifyConnectSection returnTo={`/room/${normalizedCode}`} showClipDuration={false} />
-        </SketchCard>
-      ) : null}
-
-      {error ? <p className="form-error">{error}</p> : null}
+      {error && !anyModalOpen ? <p className="form-error">{error}</p> : null}
 
       {isHost ? (
-        <SketchButton
-          fullWidth
-          disabled={busy || (needsSpotify && !spotifyConnected)}
-          onClick={handleStart}
-        >
+        <SketchButton fullWidth disabled={busy} onClick={handleStart}>
           {busy ? 'Starting…' : 'Start game'}
         </SketchButton>
       ) : (
@@ -113,6 +165,42 @@ function LobbyContent() {
       <SketchButton variant="ghost" fullWidth disabled={busy} onClick={handleLeave}>
         Leave lobby
       </SketchButton>
+
+      <LobbyModeEditModal
+        open={modeModalOpen}
+        currentSettings={room.settings}
+        busy={busy}
+        error={modeModalOpen ? error : null}
+        onClose={() => {
+          setModeModalOpen(false)
+          clearError()
+        }}
+        onSave={handleSaveMode}
+      />
+
+      <LobbyCollectionEditModal
+        open={collectionModalOpen}
+        settings={room.settings}
+        busy={busy}
+        error={collectionModalOpen ? error : null}
+        onClose={() => {
+          setCollectionModalOpen(false)
+          clearError()
+        }}
+        onSave={handleSaveCollection}
+      />
+
+      <LobbyGameSettingsEditModal
+        open={settingsModalOpen}
+        settings={room.settings}
+        busy={busy}
+        error={settingsModalOpen ? error : null}
+        onClose={() => {
+          setSettingsModalOpen(false)
+          clearError()
+        }}
+        onSave={handleSaveSettings}
+      />
     </main>
   )
 }

@@ -22,10 +22,13 @@ flowchart TD
   Play --> Results["/room/:code/results"]
   Results --> Home
   Results --> Lobby
-  DevSpotify["/dev/spotify — host playback test"]
+  DevSpotify["/dev/spotify — dev playback test"]
+  HostSpotify["/host/spotify — beta full playback (unlisted)"]
 ```
 
-**Dev route (Phase 8a):** `/dev/spotify` — connect Spotify, paste track URI, play first 15s/30s. Not part of the main game flow until Phase 8b.
+**Default flow:** setup → lobby → play uses preview clips (no Spotify connect).
+
+**Beta full playback:** visit `/host/spotify` (unlisted) → connect Spotify → create room → `playbackMode: spotify-full`.
 
 ---
 
@@ -38,11 +41,9 @@ flowchart TD
   C -->|All In| D[All In setup]
   C -->|Turns| E[Turns setup]
   D --> D1[Paste Spotify playlist/album link]
-  D --> D1b[Connect Spotify — host only]
-  D --> D2[Select guess fields]
-  D --> D3[Song clip 15s / 30s + rounds]
+  D --> D2[Select guess fields + clip duration]
   D --> F[Create lobby]
-  E --> E1[Paste Spotify link + Connect Spotify]
+  E --> E1[Paste Spotify link + clip duration]
   E --> E2{Turn game type}
   E2 -->|Guess| E3[Guess field checklist]
   E2 -->|Sing Along| E4[Timer settings]

@@ -2,6 +2,7 @@ import type { PlayerRoundResult } from '../types/round.js'
 
 export const MIN_RATING = 1
 export const MAX_RATING = 10
+export const DEFAULT_MISSING_RATING = MAX_RATING
 export const SING_ALONG_POINTS_MULTIPLIER = 10
 
 export function validateRatingValue(rating: number): string | null {
@@ -61,4 +62,25 @@ export function allEligibleRatingsSubmitted(
 ): boolean {
   const raters = playerIds.filter((id) => id !== activePlayerId)
   return raters.every((id) => ratings.has(id))
+}
+
+export function fillMissingRatings(
+  playerIds: string[],
+  activePlayerId: string,
+  ratings: Map<string, number>,
+): void {
+  for (const playerId of playerIds) {
+    if (playerId === activePlayerId) continue
+    if (!ratings.has(playerId)) {
+      ratings.set(playerId, DEFAULT_MISSING_RATING)
+    }
+  }
+}
+
+/** Use the selected rating when set; otherwise default to 10. */
+export function resolveRatingOrDefault(rating: number | null | undefined): number {
+  if (typeof rating === 'number' && Number.isInteger(rating) && rating >= MIN_RATING && rating <= MAX_RATING) {
+    return rating
+  }
+  return DEFAULT_MISSING_RATING
 }

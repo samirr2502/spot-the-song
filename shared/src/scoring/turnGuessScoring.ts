@@ -7,6 +7,45 @@ export function enabledFields(guessFields: GuessFields): GuessFieldKey[] {
   return (['title', 'artist', 'album', 'year'] as const).filter((field) => guessFields[field])
 }
 
+export function defaultVotePayload(guessFields: GuessFields): VotePayload {
+  const fields = enabledFields(guessFields)
+  return Object.fromEntries(fields.map((field) => [field, true])) as VotePayload
+}
+
+/** Unselected fields default to yes; explicit yes/no selections are kept. */
+export function mergeVotePayloadWithDefaults(
+  partial: VotePayload,
+  guessFields: GuessFields,
+): VotePayload {
+  const defaults = defaultVotePayload(guessFields)
+  const fields = enabledFields(guessFields)
+  const merged: VotePayload = { ...defaults }
+  for (const field of fields) {
+    if (typeof partial[field] === 'boolean') {
+      merged[field] = partial[field]
+    }
+  }
+  return merged
+}
+
+export function fillMissingVotes(
+  playerIds: string[],
+  activePlayerId: string,
+  guessFields: GuessFields,
+  votes: Map<string, VotePayload>,
+): void {
+  for (const playerId of playerIds) {
+    if (playerId === activePlayerId) continue
+
+    if (!votes.has(playerId)) {
+      votes.set(playerId, defaultVotePayload(guessFields))
+      continue
+    }
+
+    votes.set(playerId, mergeVotePayloadWithDefaults(votes.get(playerId)!, guessFields))
+  }
+}
+
 export function tallyFieldVote(
   votes: Map<string, VotePayload>,
   field: GuessFieldKey,

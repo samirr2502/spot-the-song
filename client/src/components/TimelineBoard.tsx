@@ -1,5 +1,6 @@
 import type { TimelineCardPublic } from '@spot-the-song/shared'
-import { SketchCard, SketchSongCard } from './sketch'
+import { SketchCard } from './sketch'
+import { TimelineSongCard } from './TimelineSongCard'
 
 type TimelineBoardProps = {
   cards: TimelineCardPublic[]
@@ -18,25 +19,17 @@ type TimelineBoardProps = {
 function TimelineCardFace({ card }: { card: TimelineCardPublic }) {
   if (card.revealed && card.title && card.artist && card.album && card.year !== undefined) {
     return (
-      <SketchSongCard
-        track={{
-          title: card.title,
-          artist: card.artist,
-          album: card.album,
-          year: card.year,
-        }}
-        compact
+      <TimelineSongCard
+        tiltSeed={card.trackId}
+        title={card.title}
+        artist={card.artist}
+        album={card.album}
+        year={card.year}
       />
     )
   }
 
-  return (
-    <SketchCard tiltSeed={card.trackId} className="timeline-card timeline-card--hidden">
-      <p className="timeline-card__eyebrow">{card.isStarter ? 'starter' : 'hidden'}</p>
-      <p className="timeline-card__title">???</p>
-      <p className="timeline-card__year">????</p>
-    </SketchCard>
-  )
+  return <TimelineSongCard tiltSeed={card.trackId} hidden isStarter={card.isStarter} />
 }
 
 function InsertSlot({
@@ -80,21 +73,15 @@ export function TimelineBoard({
         <div className="timeline-pending">
           <p className="page-eyebrow">incoming card</p>
           {pendingCard.title && pendingCard.artist ? (
-            <SketchSongCard
-              track={{
-                title: pendingCard.title,
-                artist: pendingCard.artist,
-                album: pendingCard.album ?? '',
-                year: 0,
-              }}
-              hiddenYear
-              compact
+            <TimelineSongCard
+              tiltSeed="pending-card"
+              title={pendingCard.title}
+              artist={pendingCard.artist}
+              album={pendingCard.album}
+              hiddenYear={pendingCard.hiddenYear}
             />
           ) : (
-            <SketchCard tiltSeed="pending-hidden" className="timeline-card timeline-card--hidden">
-              <p className="timeline-card__title">???</p>
-              <p className="timeline-card__year">????</p>
-            </SketchCard>
+            <TimelineSongCard tiltSeed="pending-hidden" hidden />
           )}
           <p className="timeline-pending__hint">Tap a slot below to place it</p>
         </div>

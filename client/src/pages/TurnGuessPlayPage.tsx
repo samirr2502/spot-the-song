@@ -1,16 +1,19 @@
-import { type FormEvent, useMemo, useState } from 'react'
+import { type FormEvent, useCallback, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { GuessFieldKey, VotePayload } from '@spot-the-song/shared'
+import { mergeVotePayloadWithDefaults } from '@spot-the-song/shared'
 import { RoundClipPlayer } from '../components/RoundClipPlayer'
 import {
   SketchButton,
   SketchCard,
+  SketchModal,
   SketchScore,
   SketchSongCard,
   SketchTimer,
 } from '../components/sketch'
 import { useRoom } from '../context/RoomContext'
 import { useCountdown } from '../hooks/useCountdown'
+import { useDeadlineAutoSubmit } from '../hooks/useDeadlineAutoSubmit'
 import { useRoomStatusRedirect } from '../hooks/useRoomNavigation'
 import { formatFieldScoreLabel } from '../lib/revealFieldLabel'
 
@@ -34,9 +37,12 @@ export function TurnGuessPlayPage() {
     busy,
     error,
     submitVotes,
+    turnGuessDone,
     continueAfterResults,
     clearError,
   } = useRoom()
+
+  const [doneConfirmOpen, setDoneConfirmOpen] = useState(false)
 
   useRoomStatusRedirect(code, ['playing', 'round-results'])
 
@@ -45,7 +51,11 @@ export function TurnGuessPlayPage() {
   const round = room?.currentRound
   const endsAt = round?.endsAt
   const secondsRemaining = useCountdown(endsAt)
-  const guessTimerTotal = room?.settings.guessTimerSeconds ?? 30
+  const clipDurationSeconds = room?.settings.clipDurationSeconds ?? 30
+  const guessTimerSeconds = room?.settings.guessTimerSeconds ?? 0
+  const totalGuessSeconds = clipDurationSeconds + guessTimerSeconds
+  const clipSecondsRemaining = useCountdown(round?.clipEndsAt ?? null)
+  const clipEndsAt = round?.clipEndsAt ?? null
 
   const enabledFields = useMemo(() => {
     if (!room) return [] as GuessFieldKey[]
@@ -60,12 +70,17 @@ export function TurnGuessPlayPage() {
   const isActivePlayer = !!session && session.playerId === round?.activePlayerId
   const hasSubmitted =
     !!session && !!round?.submittedPlayerIds?.includes(session.playerId)
-  const isGuessing = room?.status === 'playing' && round?.phase === 'playing'
+  const isClipPlaying = room?.status === 'playing' && round?.phase === 'clip-playing'
+  const isGuessing =
+    room?.status === 'playing' && (round?.phase === 'playing' || round?.phase === 'clip-playing')
   const isVoting = room?.status === 'playing' && round?.phase === 'voting'
   const isRoundResults = room?.status === 'round-results'
   const showIntro = room?.status === 'playing' && round?.phase === 'round-intro'
 
   const [votes, setVotes] = useState<VotePayload>({})
+  const votesRef = useRef(votes)
+  votesRef.current = votes
+
   const voterCount = useMemo(() => {
     if (!room || !round?.activePlayerId) return 0
     return room.players.filter((player) => player.connected && player.id !== round.activePlayerId).length
@@ -79,20 +94,45 @@ export function TurnGuessPlayPage() {
     setVotes((current) => ({ ...current, [field]: value }))
   }
 
-  function allVotesSelected(): boolean {
-    return enabledFields.every((field) => typeof votes[field] === 'boolean')
+  function buildVotesWithDefaults(): VotePayload {
+    if (!room) return {}
+    return mergeVotePayloadWithDefaults(votesRef.current, room.settings.guessFields)
   }
 
   async function handleSubmitVotes(event: FormEvent) {
     event.preventDefault()
     clearError()
 
-    if (!allVotesSelected()) return
-
-    const ok = await submitVotes(votes)
+    const payload = buildVotesWithDefaults()
+    const ok = await submitVotes(payload)
     if (ok) {
       setVotes({})
     }
+  }
+
+  const autoSubmitVotes = useCallback(async () => {
+    if (!isVoting || isActivePlayer || hasSubmitted || !room) return
+    clearError()
+    const ok = await submitVotes(buildVotesWithDefaults())
+    if (ok) {
+      setVotes({})
+    }
+  }, [clearError, hasSubmitted, isActivePlayer, isVoting, room, submitVotes])
+
+  useDeadlineAutoSubmit({
+    enabled: isVoting && !isActivePlayer,
+    endsAt,
+    secondsRemaining,
+    alreadyDone: hasSubmitted,
+    triggerAtOrBelow: 1,
+    onAutoSubmit: autoSubmitVotes,
+  })
+
+  async function handleConfirmDone() {
+    clearError()
+    const ok = await turnGuessDone()
+    setDoneConfirmOpen(false)
+    if (!ok) return
   }
 
   async function handleContinue() {
@@ -124,7 +164,7 @@ export function TurnGuessPlayPage() {
           <h1 className="page-title page-title--sm">Reveal</h1>
         </header>
 
-        <SketchSongCard track={roundResults.track} showSpotifyLink />
+        <SketchSongCard track={roundResults.track} showSpotifyLink jamHint />
 
         {activePlayer ? (
           <SketchCard tiltSeed="active-player-result">
@@ -159,7 +199,7 @@ export function TurnGuessPlayPage() {
             {activeResult.fieldScores.map((entry) => (
               <SketchScore
                 key={entry.field}
-                label={formatFieldScoreLabel(entry.field, roundResults.track, entry.correct)}
+                label={formatFieldScoreLabel(entry.field, entry.correct, entry.answer)}
                 value={entry.points}
                 highlight={entry.correct}
               />
@@ -217,17 +257,24 @@ export function TurnGuessPlayPage() {
 
       <RoundClipPlayer
         isHost={isHost}
+        playbackMode={room.settings.playbackMode}
         phase={round?.phase}
-        clipDurationSeconds={room.settings.clipDurationSeconds}
-        endsAt={round?.phase === 'clip-playing' ? round.endsAt : null}
-        secondsRemaining={round?.phase === 'clip-playing' ? secondsRemaining : room.settings.clipDurationSeconds}
+        clipDurationSeconds={clipDurationSeconds}
+        endsAt={clipEndsAt}
+        secondsRemaining={isClipPlaying ? clipSecondsRemaining : clipDurationSeconds}
       />
 
-      {round?.phase === 'playing' ? (
+      {isGuessing ? (
         <SketchTimer
           secondsRemaining={secondsRemaining}
-          totalSeconds={guessTimerTotal}
-          label="Guess time"
+          totalSeconds={totalGuessSeconds}
+          label={
+            guessTimerSeconds === 0
+              ? 'Guess during the clip'
+              : isClipPlaying
+                ? 'Listen and guess while the clip plays'
+                : 'Extra guess time'
+          }
         />
       ) : null}
 
@@ -257,6 +304,12 @@ export function TurnGuessPlayPage() {
               <li key={field}>{FIELD_LABELS[field]}</li>
             ))}
           </ul>
+          {isClipPlaying ? (
+            <p className="lobby-players__status">You can start guessing during the clip.</p>
+          ) : null}
+          <SketchButton type="button" fullWidth disabled={busy} onClick={() => setDoneConfirmOpen(true)}>
+            Done guessing
+          </SketchButton>
         </SketchCard>
       ) : null}
 
@@ -269,6 +322,13 @@ export function TurnGuessPlayPage() {
       {isVoting && isActivePlayer ? (
         <SketchCard tiltSeed="turn-wait-vote" className="lobby-wait-card">
           <p>Waiting for votes…</p>
+        </SketchCard>
+      ) : null}
+
+      {isVoting && !isActivePlayer && round?.challengeTrack ? (
+        <SketchCard tiltSeed="turn-vote-reveal">
+          <p className="page-eyebrow">the song</p>
+          <SketchSongCard track={round.challengeTrack} compact />
         </SketchCard>
       ) : null}
 
@@ -298,7 +358,7 @@ export function TurnGuessPlayPage() {
               </div>
             ))}
             {error ? <p className="form-error">{error}</p> : null}
-            <SketchButton type="submit" fullWidth disabled={busy || !allVotesSelected()}>
+            <SketchButton type="submit" fullWidth disabled={busy}>
               Submit votes
             </SketchButton>
           </form>
@@ -313,6 +373,24 @@ export function TurnGuessPlayPage() {
           </p>
         </SketchCard>
       ) : null}
+
+      <SketchModal
+        open={doneConfirmOpen}
+        title="Done guessing?"
+        onClose={() => setDoneConfirmOpen(false)}
+      >
+        <p className="connection-status__confirm-text">
+          Move on to voting? You can&apos;t take back guesses once voting starts.
+        </p>
+        <div className="connection-status__confirm-actions">
+          <SketchButton type="button" variant="ghost" fullWidth onClick={() => setDoneConfirmOpen(false)}>
+            Keep guessing
+          </SketchButton>
+          <SketchButton type="button" fullWidth disabled={busy} onClick={() => void handleConfirmDone()}>
+            {busy ? '…' : 'Start voting'}
+          </SketchButton>
+        </div>
+      </SketchModal>
     </main>
   )
 }

@@ -18,6 +18,7 @@ import { TurnGuessSetupPage } from './pages/TurnGuessSetupPage'
 import { TurnsModePage } from './pages/TurnsModePage'
 import { RoomHowToPlayPage } from './pages/RoomHowToPlayPage'
 import { DevSpotifyPage } from './pages/DevSpotifyPage'
+import { HostSpotifyPage } from './pages/HostSpotifyPage'
 
 export function App() {
   return (
@@ -127,6 +128,7 @@ export function App() {
           }
         />
         <Route path="/dev/spotify" element={<DevSpotifyPage />} />
+        <Route path="/host/spotify" element={<HostSpotifyPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </SketchLayout>

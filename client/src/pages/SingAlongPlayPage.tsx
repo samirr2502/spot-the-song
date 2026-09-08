@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { MAX_RATING, MIN_RATING } from '@spot-the-song/shared'
+import { MAX_RATING, MIN_RATING, resolveRatingOrDefault } from '@spot-the-song/shared'
 import {
   SketchButton,
   SketchCard,
@@ -10,6 +10,7 @@ import {
 } from '../components/sketch'
 import { useRoom } from '../context/RoomContext'
 import { useCountdown } from '../hooks/useCountdown'
+import { useDeadlineAutoSubmit } from '../hooks/useDeadlineAutoSubmit'
 import { useRoomStatusRedirect } from '../hooks/useRoomNavigation'
 
 const RATING_SECONDS = 20
@@ -30,6 +31,7 @@ export function SingAlongPlayPage() {
     busy,
     error,
     submitRating,
+    hostStartRating,
     continueAfterResults,
     clearError,
   } = useRoom()
@@ -57,6 +59,9 @@ export function SingAlongPlayPage() {
   const showIntro = room?.status === 'playing' && round?.phase === 'round-intro'
 
   const [selectedRating, setSelectedRating] = useState<number | null>(null)
+  const selectedRatingRef = useRef(selectedRating)
+  selectedRatingRef.current = selectedRating
+
   const raterCount = useMemo(() => {
     if (!room || !round?.activePlayerId) return 0
     return room.players.filter((player) => player.connected && player.id !== round.activePlayerId).length
@@ -66,15 +71,38 @@ export function SingAlongPlayPage() {
     (entry) => entry.playerId === roundResults.activePlayerId,
   )
 
+  async function handleStartRating() {
+    clearError()
+    await hostStartRating()
+  }
+
   async function handleSubmitRating() {
     clearError()
-    if (selectedRating === null) return
-
-    const ok = await submitRating({ rating: selectedRating })
+    const rating = resolveRatingOrDefault(selectedRating)
+    const ok = await submitRating({ rating })
     if (ok) {
       setSelectedRating(null)
     }
   }
+
+  const autoSubmitRating = useCallback(async () => {
+    if (!isRating || isActivePlayer || hasSubmitted) return
+    clearError()
+    const rating = resolveRatingOrDefault(selectedRatingRef.current)
+    const ok = await submitRating({ rating })
+    if (ok) {
+      setSelectedRating(null)
+    }
+  }, [clearError, hasSubmitted, isActivePlayer, isRating, submitRating])
+
+  useDeadlineAutoSubmit({
+    enabled: isRating && !isActivePlayer,
+    endsAt,
+    secondsRemaining,
+    alreadyDone: hasSubmitted,
+    triggerAtOrBelow: 1,
+    onAutoSubmit: autoSubmitRating,
+  })
 
   async function handleContinue() {
     clearError()
@@ -105,7 +133,7 @@ export function SingAlongPlayPage() {
           <h1 className="page-title page-title--sm">Reveal</h1>
         </header>
 
-        <SketchSongCard track={roundResults.track} showSpotifyLink />
+        <SketchSongCard track={roundResults.track} showSpotifyLink jamHint />
 
         {activePlayer ? (
           <SketchCard tiltSeed="sing-active-result">
@@ -177,7 +205,7 @@ export function SingAlongPlayPage() {
         </SketchCard>
       ) : null}
 
-      {round?.phase === 'playing' ? (
+      {isPerforming && singTimerTotal > 0 ? (
         <SketchTimer
           secondsRemaining={secondsRemaining}
           totalSeconds={singTimerTotal}
@@ -196,21 +224,31 @@ export function SingAlongPlayPage() {
       {showIntro ? (
         <SketchCard tiltSeed="sing-intro" className="lobby-wait-card">
           {isActivePlayer ? (
-            <p>Your performance is starting — get ready to sing!</p>
+            <p>Your performance is starting — get ready!</p>
           ) : (
             <p>{activePlayer?.name ?? 'Someone'} is up next…</p>
           )}
         </SketchCard>
       ) : null}
 
-      {isPerforming && isActivePlayer && round?.challengeTrack ? (
-        <>
-          <SketchCard tiltSeed="sing-prompt" className="sing-prompt">
-            <p className="page-eyebrow">your song</p>
-            <SketchSongCard track={round.challengeTrack} />
-            <p className="sing-prompt__cta">Sing your heart out!</p>
-          </SketchCard>
-        </>
+      {isPerforming && isActivePlayer ? (
+        <SketchCard tiltSeed="sing-prompt" className="sing-prompt">
+          <p className="page-eyebrow">your turn</p>
+          <p className="sing-prompt__cta">
+            Open the song in Spotify and sing — don&apos;t peek at the title until voting is over!
+          </p>
+          {round?.performerSpotifyUrl ? (
+            <SketchButton
+              type="button"
+              fullWidth
+              onClick={() => window.open(round.performerSpotifyUrl, '_blank', 'noopener,noreferrer')}
+            >
+              Open in Spotify ↗
+            </SketchButton>
+          ) : (
+            <p className="clip-player__hint">No Spotify link for this track.</p>
+          )}
+        </SketchCard>
       ) : null}
 
       {isPerforming && !isActivePlayer ? (
@@ -219,9 +257,25 @@ export function SingAlongPlayPage() {
         </SketchCard>
       ) : null}
 
+      {isPerforming && isHost ? (
+        <>
+          {error ? <p className="form-error">{error}</p> : null}
+          <SketchButton fullWidth disabled={busy} onClick={handleStartRating}>
+            {busy ? '…' : 'Start voting'}
+          </SketchButton>
+        </>
+      ) : null}
+
       {isRating && isActivePlayer ? (
         <SketchCard tiltSeed="sing-wait-rating" className="lobby-wait-card">
           <p>Waiting for ratings…</p>
+        </SketchCard>
+      ) : null}
+
+      {isRating && !isActivePlayer && round?.challengeTrack ? (
+        <SketchCard tiltSeed="sing-rating-reveal">
+          <p className="page-eyebrow">the song</p>
+          <SketchSongCard track={round.challengeTrack} compact />
         </SketchCard>
       ) : null}
 
@@ -241,7 +295,7 @@ export function SingAlongPlayPage() {
             ))}
           </div>
           {error ? <p className="form-error">{error}</p> : null}
-          <SketchButton fullWidth disabled={busy || selectedRating === null} onClick={handleSubmitRating}>
+          <SketchButton fullWidth disabled={busy} onClick={handleSubmitRating}>
             Submit rating
           </SketchButton>
         </SketchCard>

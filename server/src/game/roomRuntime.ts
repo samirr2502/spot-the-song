@@ -1,5 +1,4 @@
-import type { RoundResultsPayload, SubmitAnswersPayload } from '@spot-the-song/shared'
-import type { Track } from '@spot-the-song/shared'
+import type { ChallengeTrack, RoundResultsPayload, SubmitAnswersPayload, Track } from '@spot-the-song/shared'
 import type { TimelineBonusPayload, TimelineCardStored, VotePayload } from '@spot-the-song/shared'
 
 export type StoredAnswer = {
@@ -20,6 +19,8 @@ export type RoomRuntime = {
   timelinePlacementLocked: boolean
   turnRotationIndex: number
   roundStartedAt: number | null
+  /** End of clip portion — speed bonus cutoff for All In. */
+  clipEndsAt: number | null
   howToPlayAcks: Set<string>
   roundTimer: ReturnType<typeof setTimeout> | null
   lastRoundResults: RoundResultsPayload | null
@@ -41,6 +42,7 @@ export function createRoomRuntime(trackPool: Track[]): RoomRuntime {
     timelinePlacementLocked: false,
     turnRotationIndex: 0,
     roundStartedAt: null,
+    clipEndsAt: null,
     howToPlayAcks: new Set(),
     roundTimer: null,
     lastRoundResults: null,
@@ -77,6 +79,16 @@ export function toPublicTrack(track: Track) {
 }
 
 /** Full track metadata for round reveal / results only */
+export function toChallengeTrack(track: Track): ChallengeTrack {
+  return {
+    title: track.title,
+    artist: track.artist,
+    album: track.album,
+    year: track.year,
+    artworkUrl: track.artworkUrl ?? undefined,
+  }
+}
+
 export function toRevealTrack(track: Track) {
   return {
     id: track.id,

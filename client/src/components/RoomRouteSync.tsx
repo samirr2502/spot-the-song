@@ -9,6 +9,11 @@ export function RoomRouteSync() {
   const { room, session } = useRoom()
 
   useEffect(() => {
+    if (!session && location.pathname.toLowerCase().startsWith('/room/')) {
+      navigate('/home', { replace: true })
+      return
+    }
+
     if (!room || !session || session.roomCode !== room.code) return
 
     if (!location.pathname.startsWith('/room/')) {
@@ -21,8 +26,7 @@ export function RoomRouteSync() {
 
     if (currentPath === expectedPath) return
 
-    const onLobbyRoot = currentPath === `/ROOM/${room.code}`
-    if (onLobbyRoot && room.status !== 'lobby') {
+    if (location.pathname.toLowerCase().startsWith(`/room/${room.code.toLowerCase()}`)) {
       navigate(expectedPath, { replace: true })
     }
   }, [room, session, location.pathname, navigate])

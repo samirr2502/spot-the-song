@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { describeInsertPosition } from '@spot-the-song/shared'
 import { RoundClipPlayer } from '../components/RoundClipPlayer'
@@ -13,6 +13,7 @@ import {
 } from '../components/sketch'
 import { useRoom } from '../context/RoomContext'
 import { useCountdown } from '../hooks/useCountdown'
+import { useDeadlineAutoSubmit } from '../hooks/useDeadlineAutoSubmit'
 import { useRoomStatusRedirect } from '../hooks/useRoomNavigation'
 import { formatFieldScoreLabel } from '../lib/revealFieldLabel'
 
@@ -44,8 +45,11 @@ export function TimelinePlayPage() {
   const round = room?.currentRound
   const endsAt = round?.endsAt
   const secondsRemaining = useCountdown(endsAt)
-  const listenTimerTotal = room?.settings.clipDurationSeconds ?? 15
-  const placementTimerTotal = room?.settings.guessTimerSeconds ?? 30
+  const clipDurationSeconds = room?.settings.clipDurationSeconds ?? 15
+  const placementTimerSeconds = room?.settings.guessTimerSeconds ?? 0
+  const totalPlacementSeconds = clipDurationSeconds + placementTimerSeconds
+  const clipSecondsRemaining = useCountdown(round?.clipEndsAt ?? null)
+  const clipEndsAt = round?.clipEndsAt ?? null
 
   const activePlayer = useMemo(() => {
     if (!room || !round?.activePlayerId) return null
@@ -53,8 +57,9 @@ export function TimelinePlayPage() {
   }, [room, round?.activePlayerId])
 
   const isActivePlayer = !!session && session.playerId === round?.activePlayerId
-  const isListening = room?.status === 'playing' && round?.phase === 'clip-playing'
+  const isClipPlaying = room?.status === 'playing' && round?.phase === 'clip-playing'
   const isPlacing = room?.status === 'playing' && round?.phase === 'answering'
+  const isPlacementWindow = isClipPlaying || isPlacing
   const isRoundResults = room?.status === 'round-results'
   const showIntro = room?.status === 'playing' && round?.phase === 'round-intro'
 
@@ -80,15 +85,15 @@ export function TimelinePlayPage() {
   const [placementLocked, setPlacementLocked] = useState(false)
   const [bonusAnswers, setBonusAnswers] = useState<{ title?: string; artist?: string }>({})
   const [bonusSubmitted, setBonusSubmitted] = useState(false)
+  const bonusAnswersRef = useRef(bonusAnswers)
+  bonusAnswersRef.current = bonusAnswers
 
   useEffect(() => {
-    if (round?.phase === 'round-intro' || round?.phase === 'clip-playing') {
-      setSelectedIndex(null)
-      setPlacementLocked(false)
-      setBonusAnswers({})
-      setBonusSubmitted(false)
-    }
-  }, [round?.index, round?.phase])
+    setSelectedIndex(null)
+    setPlacementLocked(false)
+    setBonusAnswers({})
+    setBonusSubmitted(false)
+  }, [round?.index])
 
   const activeResult = roundResults?.playerResults.find(
     (entry) => entry.playerId === roundResults.activePlayerId,
@@ -122,6 +127,36 @@ export function TimelinePlayPage() {
     }
   }
 
+  const autoSubmitBonus = useCallback(async () => {
+    if (!isActivePlayer || !placementLocked || bonusSubmitted) return
+    if (!bonusFieldsEnabled.title && !bonusFieldsEnabled.artist) return
+    clearError()
+    const ok = await submitTimelineBonus(bonusAnswersRef.current)
+    if (ok) {
+      setBonusSubmitted(true)
+      setBonusAnswers({})
+    }
+  }, [
+    bonusFieldsEnabled.artist,
+    bonusFieldsEnabled.title,
+    bonusSubmitted,
+    clearError,
+    isActivePlayer,
+    placementLocked,
+    submitTimelineBonus,
+  ])
+
+  useDeadlineAutoSubmit({
+    enabled:
+      isActivePlayer &&
+      placementLocked &&
+      (bonusFieldsEnabled.title || bonusFieldsEnabled.artist),
+    endsAt,
+    secondsRemaining,
+    alreadyDone: bonusSubmitted,
+    onAutoSubmit: autoSubmitBonus,
+  })
+
   async function handleContinue() {
     clearError()
     if (!room || !roundResults) return
@@ -154,7 +189,7 @@ export function TimelinePlayPage() {
           <h1 className="page-title page-title--sm">Reveal</h1>
         </header>
 
-        <SketchSongCard track={roundResults.track} showSpotifyLink />
+        <SketchSongCard track={roundResults.track} showSpotifyLink jamHint />
 
         {activePlayer ? (
           <SketchCard tiltSeed="timeline-active-result">
@@ -182,8 +217,8 @@ export function TimelinePlayPage() {
                     ? 'Placement'
                     : formatFieldScoreLabel(
                         entry.field as 'title' | 'artist',
-                        roundResults.track,
                         entry.correct,
+                        entry.answer,
                       )
                 }
                 value={entry.points}
@@ -238,7 +273,7 @@ export function TimelinePlayPage() {
           round {round?.index ?? 0} of {room.settings.roundCount}
         </p>
         <h1 className="page-title page-title--sm">
-          {showIntro ? 'Get ready…' : isPlacing ? 'Place the card' : 'Timeline'}
+          {showIntro ? 'Get ready…' : isPlacementWindow ? 'Place the card' : 'Timeline'}
         </h1>
       </header>
 
@@ -251,68 +286,55 @@ export function TimelinePlayPage() {
 
       <RoundClipPlayer
         isHost={isHost}
+        playbackMode={room.settings.playbackMode}
         phase={round?.phase}
-        clipDurationSeconds={room.settings.clipDurationSeconds}
-        endsAt={round?.phase === 'clip-playing' ? round.endsAt : null}
-        secondsRemaining={round?.phase === 'clip-playing' ? secondsRemaining : room.settings.clipDurationSeconds}
+        clipDurationSeconds={clipDurationSeconds}
+        endsAt={clipEndsAt}
+        secondsRemaining={isClipPlaying ? clipSecondsRemaining : clipDurationSeconds}
       />
 
-      {round?.phase === 'clip-playing' ? (
+      {isPlacementWindow ? (
         <SketchTimer
           secondsRemaining={secondsRemaining}
-          totalSeconds={listenTimerTotal}
-          label="Listen"
-        />
-      ) : null}
-
-      {round?.phase === 'answering' ? (
-        <SketchTimer
-          secondsRemaining={secondsRemaining}
-          totalSeconds={placementTimerTotal}
-          label="Placement time"
+          totalSeconds={totalPlacementSeconds}
+          label={
+            placementTimerSeconds === 0
+              ? 'Place during the clip'
+              : isClipPlaying
+                ? 'Listen and place while the clip plays'
+                : 'Extra placement time'
+          }
         />
       ) : null}
 
       {showIntro ? (
         <SketchCard tiltSeed="timeline-intro" className="lobby-wait-card">
           {isActivePlayer ? (
-            <p>Listen to the clip — you'll place it on your timeline next.</p>
+            <p>Clip starting — place the card on your timeline while you listen.</p>
           ) : (
             <p>{activePlayer?.name ?? 'Someone'} is up next…</p>
           )}
         </SketchCard>
       ) : null}
 
-      {isListening && isActivePlayer ? (
-        <SketchCard tiltSeed="timeline-listen" className="lobby-wait-card">
-          <p>Listen closely — year hidden!</p>
-        </SketchCard>
-      ) : null}
-
-      {isListening && !isActivePlayer ? (
-        <SketchCard tiltSeed="timeline-watch-listen" className="lobby-wait-card">
-          <p>{activePlayer?.name ?? 'Active player'} is listening…</p>
-        </SketchCard>
-      ) : null}
-
-      {(isPlacing || isListening) && (isActivePlayer || !isActivePlayer) ? (
+      {isPlacementWindow ? (
         <TimelineBoard
           cards={viewingTimeline}
           title={viewingTitle}
-          interactive={isPlacing && isActivePlayer && !placementLocked}
+          interactive={isActivePlayer && !placementLocked}
           selectedIndex={selectedIndex}
           onSelectIndex={setSelectedIndex}
-          pendingCard={isPlacing && isActivePlayer && !placementLocked ? { hiddenYear: true } : null}
+          pendingCard={isActivePlayer && !placementLocked ? { hiddenYear: true } : null}
         />
       ) : null}
 
-      {isPlacing && isActivePlayer && !placementLocked ? (
+      {isPlacementWindow && isActivePlayer && !placementLocked ? (
         <SketchButton fullWidth disabled={busy || selectedIndex === null} onClick={handlePlaceCard}>
           Place card
         </SketchButton>
       ) : null}
 
-      {isPlacing && isActivePlayer && placementLocked && (bonusFieldsEnabled.title || bonusFieldsEnabled.artist) && !bonusSubmitted ? (
+      {isPlacementWindow && isActivePlayer && placementLocked && (bonusFieldsEnabled.title || bonusFieldsEnabled.artist) && !bonusSubmitted ? (
         <SketchCard tiltSeed="timeline-bonus">
           <h2 className="lobby-players__title">Bonus guesses</h2>
           {bonusFieldsEnabled.title ? (
@@ -344,19 +366,19 @@ export function TimelinePlayPage() {
         </SketchCard>
       ) : null}
 
-      {isPlacing && isActivePlayer && placementLocked && bonusSubmitted ? (
+      {isPlacementWindow && isActivePlayer && placementLocked && bonusSubmitted ? (
         <SketchCard tiltSeed="timeline-wait-reveal" className="lobby-wait-card">
           <p>Waiting for reveal…</p>
         </SketchCard>
       ) : null}
 
-      {isPlacing && isActivePlayer && placementLocked && !bonusFieldsEnabled.title && !bonusFieldsEnabled.artist ? (
+      {isPlacementWindow && isActivePlayer && placementLocked && !bonusFieldsEnabled.title && !bonusFieldsEnabled.artist ? (
         <SketchCard tiltSeed="timeline-wait-reveal" className="lobby-wait-card">
           <p>Placement locked — waiting for reveal…</p>
         </SketchCard>
       ) : null}
 
-      {isPlacing && !isActivePlayer ? (
+      {isPlacementWindow && !isActivePlayer ? (
         <SketchCard tiltSeed="timeline-watch-place" className="lobby-wait-card">
           <p>{activePlayer?.name ?? 'Active player'} is placing the card…</p>
         </SketchCard>

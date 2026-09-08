@@ -26,6 +26,7 @@ import {
   getRoomSession,
   saveRoomSession,
 } from '../lib/session'
+import { resolvePlaybackModeForCreate } from '../lib/playbackMode'
 import { emitWithAck } from '../lib/socketAck'
 import { useSocketContext } from './SocketContext'
 
@@ -42,6 +43,7 @@ type RoomContextValue = {
   createRoom: (settings: GameSettings, spotifyUrl?: string) => Promise<{ code: string } | null>
   joinRoom: (code: string, playerName: string) => Promise<{ code: string } | null>
   leaveRoom: () => Promise<void>
+  closeRoom: () => Promise<boolean>
   startGame: () => Promise<boolean>
   ackHowToPlay: () => Promise<boolean>
   submitAnswers: (answers: SubmitAnswersPayload) => Promise<boolean>
@@ -49,8 +51,12 @@ type RoomContextValue = {
   submitRating: (payload: RatingPayload) => Promise<boolean>
   placeCard: (payload: PlaceCardPayload) => Promise<boolean>
   submitTimelineBonus: (payload: TimelineBonusPayload) => Promise<boolean>
+  hostStartRating: () => Promise<boolean>
+  turnGuessDone: () => Promise<boolean>
   continueAfterResults: () => Promise<boolean>
   playAgain: () => Promise<boolean>
+  returnToLobby: () => Promise<boolean>
+  updateLobby: (settings: GameSettings, spotifyUrl?: string) => Promise<boolean>
   clearError: () => void
 }
 
@@ -83,14 +89,25 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       setError(message)
     }
 
+    const onRoomClosed = ({ message }: { message: string }) => {
+      clearRoomSession()
+      setSession(null)
+      setRoom(null)
+      setRoundResults(null)
+      setError(message)
+      setBusy(false)
+    }
+
     socket.on('server:room-state', onRoomState)
     socket.on('server:round-results', onRoundResults)
     socket.on('server:error', onError)
+    socket.on('server:room-closed', onRoomClosed)
 
     return () => {
       socket.off('server:room-state', onRoomState)
       socket.off('server:round-results', onRoundResults)
       socket.off('server:error', onError)
+      socket.off('server:room-closed', onRoomClosed)
     }
   }, [socket])
 
@@ -178,7 +195,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
         const result = await emitWithAck<CreateRoomResult>(
           socket,
           'client:create-room',
-          { playerName: name, settings, spotifyUrl: spotifyUrl?.trim() || undefined },
+          { playerName: name, settings: { ...settings, playbackMode: resolvePlaybackModeForCreate() }, spotifyUrl: spotifyUrl?.trim() || undefined },
           CREATE_ROOM_ACK_TIMEOUT_MS,
         )
 
@@ -263,6 +280,39 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     setRoom(null)
     setRoundResults(null)
     setBusy(false)
+  }, [socket])
+
+  const closeRoom = useCallback(async (): Promise<boolean> => {
+    if (!socket) return false
+
+    setBusy(true)
+    setError(null)
+
+    try {
+      const result = await emitWithAck<{ ok: true } | { ok: false; message: string }>(
+        socket,
+        'client:close-room',
+        undefined,
+        8_000,
+      )
+
+      if (!result.ok) {
+        setError(result.message)
+        setBusy(false)
+        return false
+      }
+
+      clearRoomSession()
+      setSession(null)
+      setRoom(null)
+      setRoundResults(null)
+      setBusy(false)
+      return true
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not close the room.')
+      setBusy(false)
+      return false
+    }
   }, [socket])
 
   const startGame = useCallback(async (): Promise<boolean> => {
@@ -427,6 +477,48 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     [socket],
   )
 
+  const hostStartRating = useCallback(async (): Promise<boolean> => {
+    if (!socket) return false
+
+    setBusy(true)
+    setError(null)
+
+    return new Promise((resolve) => {
+      socket.emit('client:host-start-rating', (result) => {
+        setBusy(false)
+
+        if (!result.ok) {
+          setError(result.message)
+          resolve(false)
+          return
+        }
+
+        resolve(true)
+      })
+    })
+  }, [socket])
+
+  const turnGuessDone = useCallback(async (): Promise<boolean> => {
+    if (!socket) return false
+
+    setBusy(true)
+    setError(null)
+
+    return new Promise((resolve) => {
+      socket.emit('client:turn-guess-done', (result) => {
+        setBusy(false)
+
+        if (!result.ok) {
+          setError(result.message)
+          resolve(false)
+          return
+        }
+
+        resolve(true)
+      })
+    })
+  }, [socket])
+
   const continueAfterResults = useCallback(async (): Promise<boolean> => {
     if (!socket) return false
 
@@ -471,6 +563,60 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     })
   }, [socket])
 
+  const returnToLobby = useCallback(async (): Promise<boolean> => {
+    if (!socket) return false
+
+    setBusy(true)
+    setError(null)
+
+    return new Promise((resolve) => {
+      socket.emit('client:return-to-lobby', (result) => {
+        setBusy(false)
+
+        if (!result.ok) {
+          setError(result.message)
+          resolve(false)
+          return
+        }
+
+        setRoom(result.room)
+        setRoundResults(null)
+        resolve(true)
+      })
+    })
+  }, [socket])
+
+  const updateLobby = useCallback(
+    async (settings: GameSettings, spotifyUrl?: string): Promise<boolean> => {
+      if (!socket) return false
+
+      setBusy(true)
+      setError(null)
+
+      try {
+        const result = await emitWithAck<{ ok: true } | { ok: false; message: string }>(
+          socket,
+          'client:update-lobby',
+          { settings, spotifyUrl },
+          CREATE_ROOM_ACK_TIMEOUT_MS,
+        )
+        setBusy(false)
+
+        if (!result.ok) {
+          setError(result.message)
+          return false
+        }
+
+        return true
+      } catch {
+        setBusy(false)
+        setError('Could not update lobby settings.')
+        return false
+      }
+    },
+    [socket],
+  )
+
   const isHost = useMemo(() => {
     if (!room || !session) return false
     return room.hostPlayerId === session.playerId
@@ -487,6 +633,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       createRoom,
       joinRoom,
       leaveRoom,
+      closeRoom,
       startGame,
       ackHowToPlay,
       submitAnswers,
@@ -494,8 +641,12 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       submitRating,
       placeCard,
       submitTimelineBonus,
+      hostStartRating,
+      turnGuessDone,
       continueAfterResults,
       playAgain,
+      returnToLobby,
+      updateLobby,
       clearError: () => setError(null),
     }),
     [
@@ -508,6 +659,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       createRoom,
       joinRoom,
       leaveRoom,
+      closeRoom,
       startGame,
       ackHowToPlay,
       submitAnswers,
@@ -515,8 +667,12 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       submitRating,
       placeCard,
       submitTimelineBonus,
+      hostStartRating,
+      turnGuessDone,
       continueAfterResults,
       playAgain,
+      returnToLobby,
+      updateLobby,
     ],
   )
 

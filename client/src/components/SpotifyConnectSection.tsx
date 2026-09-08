@@ -76,12 +76,14 @@ export function SpotifyConnectSection({
           <div className="setup-radios">
             <SketchRadio
               name="clipDuration"
+              value="15"
               label="15 seconds"
               checked={clipDurationSeconds === 15}
               onChange={() => onClipDurationChange(15)}
             />
             <SketchRadio
               name="clipDuration"
+              value="30"
               label="30 seconds"
               checked={clipDurationSeconds === 30}
               onChange={() => onClipDurationChange(30)}

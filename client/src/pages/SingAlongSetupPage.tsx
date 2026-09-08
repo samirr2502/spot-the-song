@@ -1,10 +1,12 @@
 import { type FormEvent, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { DEFAULT_GAME_SETTINGS, type GameSettings } from '@spot-the-song/shared'
+import { SingTimerFieldset } from '../components/SingTimerFieldset'
 import { SketchButton, SketchCard, SketchDivider, SketchInput } from '../components/sketch'
 import { useRoom } from '../context/RoomContext'
 import { useSocketContext } from '../context/SocketContext'
 import { previewMusicLink, type MusicPreviewResult } from '../lib/musicApi'
+import { validateCollectionForLobby } from '../lib/lobbySetupValidation'
 
 export function SingAlongSetupPage() {
   const navigate = useNavigate()
@@ -13,8 +15,7 @@ export function SingAlongSetupPage() {
 
   const [spotifyUrl, setSpotifyUrl] = useState('')
   const [roundCount, setRoundCount] = useState(String(DEFAULT_GAME_SETTINGS.roundCount))
-  const [clipDuration, setClipDuration] = useState(String(DEFAULT_GAME_SETTINGS.clipDurationSeconds))
-  const [singTimer, setSingTimer] = useState(String(DEFAULT_GAME_SETTINGS.singTimerSeconds ?? 45))
+  const [singTimerSeconds, setSingTimerSeconds] = useState(DEFAULT_GAME_SETTINGS.singTimerSeconds ?? 45)
   const [localError, setLocalError] = useState<string | null>(null)
   const [preview, setPreview] = useState<MusicPreviewResult | null>(null)
   const [previewError, setPreviewError] = useState<string | null>(null)
@@ -26,15 +27,22 @@ export function SingAlongSetupPage() {
       turnGame: 'sing',
       guessFields: DEFAULT_GAME_SETTINGS.guessFields,
       roundCount: Number.parseInt(roundCount, 10) || 1,
-      clipDurationSeconds: Number.parseInt(clipDuration, 10) || 15,
-      singTimerSeconds: Number.parseInt(singTimer, 10) || 45,
+      clipDurationSeconds: DEFAULT_GAME_SETTINGS.clipDurationSeconds,
+      singTimerSeconds,
+      playbackMode: 'preview',
     }),
-    [roundCount, clipDuration, singTimer],
+    [roundCount, singTimerSeconds],
   )
 
   async function handlePreview() {
     setPreviewError(null)
     setPreview(null)
+
+    if (!spotifyUrl.trim()) {
+      setPreviewError('Paste a Spotify playlist or album link first.')
+      return
+    }
+
     setPreviewLoading(true)
 
     try {
@@ -58,7 +66,13 @@ export function SingAlongSetupPage() {
     clearError()
     setLocalError(null)
 
-    const result = await createRoom(settings, spotifyUrl.trim() || undefined)
+    const collectionError = validateCollectionForLobby(spotifyUrl, preview)
+    if (collectionError) {
+      setLocalError(collectionError)
+      return
+    }
+
+    const result = await createRoom(settings, spotifyUrl.trim())
     if (result) {
       navigate(`/room/${result.code}`)
     }
@@ -70,7 +84,9 @@ export function SingAlongSetupPage() {
     <main className="page">
       <header className="page-header">
         <h1 className="page-title page-title--sm">Sing Along setup</h1>
-        <p className="page-subtitle">Take turns performing — everyone else rates the show</p>
+        <p className="page-subtitle">
+          Take turns singing mystery songs — performers open a blind Spotify link without seeing the title
+        </p>
       </header>
 
       <SketchCard tiltSeed="sing-setup">
@@ -92,10 +108,10 @@ export function SingAlongSetupPage() {
             type="button"
             variant="ghost"
             fullWidth
-            disabled={previewLoading || busy}
+            disabled={previewLoading || busy || !spotifyUrl.trim()}
             onClick={handlePreview}
           >
-            {previewLoading ? 'Loading…' : spotifyUrl.trim() ? 'Check link' : 'Preview demo playlist'}
+            {previewLoading ? 'Loading…' : 'Check link'}
           </SketchButton>
 
           {preview ? (
@@ -125,25 +141,14 @@ export function SingAlongSetupPage() {
             onChange={(event) => setRoundCount(event.target.value)}
           />
 
-          <SketchInput
-            label="Clip duration (seconds)"
-            name="clipDuration"
-            type="number"
-            min={5}
-            max={60}
-            value={clipDuration}
-            onChange={(event) => setClipDuration(event.target.value)}
+          <SingTimerFieldset
+            singTimerSeconds={singTimerSeconds}
+            onSingTimerChange={setSingTimerSeconds}
           />
 
-          <SketchInput
-            label="Performance time (seconds)"
-            name="singTimer"
-            type="number"
-            min={15}
-            max={180}
-            value={singTimer}
-            onChange={(event) => setSingTimer(event.target.value)}
-          />
+          <p className="setup-fieldset__hint">
+            The performer opens Spotify on their device. Voting starts when the host taps Start voting.
+          </p>
 
           {displayError ? <p className="form-error">{displayError}</p> : null}
 
@@ -151,7 +156,11 @@ export function SingAlongSetupPage() {
             <p className="form-error">Wait for Socket: Live in the corner before creating a lobby.</p>
           ) : null}
 
-          <SketchButton type="submit" fullWidth disabled={busy || previewLoading || connectionState !== 'connected'}>
+          <SketchButton
+            type="submit"
+            fullWidth
+            disabled={busy || previewLoading || connectionState !== 'connected' || !preview}
+          >
             {busy ? 'Loading music & creating…' : 'Create lobby'}
           </SketchButton>
         </form>

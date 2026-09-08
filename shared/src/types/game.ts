@@ -14,6 +14,8 @@ export type GuessFields = {
   year: boolean
 }
 
+export type PlaybackMode = 'preview' | 'spotify-full'
+
 export type GameSettings = {
   playMode: PlayMode
   turnGame?: TurnGame
@@ -22,6 +24,7 @@ export type GameSettings = {
   clipDurationSeconds: number
   guessTimerSeconds?: number
   singTimerSeconds?: number
+  playbackMode?: PlaybackMode
 }
 
 export type RoomStatus =
@@ -57,8 +60,13 @@ export type CurrentRound = {
   activePlayerId: string | null
   trackId: string | null
   endsAt: number | null
+  /** When the song clip ends — speed bonus window for All In. */
+  clipEndsAt?: number | null
   roundTrack?: RoundTrackPublic | null
+  /** Title/artist reveal for judges during turn-guess voting or sing-along rating. */
   challengeTrack?: ChallengeTrack | null
+  /** Blind Spotify link for the active singer — no title in the UI. */
+  performerSpotifyUrl?: string
   submittedPlayerIds?: string[]
 }
 
@@ -93,6 +101,7 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   guessFields: DEFAULT_GUESS_FIELDS,
   roundCount: 5,
   clipDurationSeconds: 30,
-  guessTimerSeconds: 30,
+  guessTimerSeconds: 0,
   singTimerSeconds: 45,
+  playbackMode: 'preview',
 }

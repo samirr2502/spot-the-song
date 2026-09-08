@@ -1,4 +1,4 @@
-import type { GuessFieldKey, RevealTrack } from '@spot-the-song/shared'
+import type { GuessFieldKey } from '@spot-the-song/shared'
 
 const FIELD_LABELS: Record<GuessFieldKey, string> = {
   title: 'Title',
@@ -7,18 +7,16 @@ const FIELD_LABELS: Record<GuessFieldKey, string> = {
   year: 'Year',
 }
 
-export function revealFieldValue(field: GuessFieldKey, track: RevealTrack): string {
-  if (field === 'year') {
-    return track.year != null ? String(track.year) : '—'
-  }
-  return track[field]
-}
-
+/** Score row label: player's guess when available, never the revealed answer. */
 export function formatFieldScoreLabel(
   field: GuessFieldKey,
-  track: RevealTrack,
   correct?: boolean,
+  playerAnswer?: string,
 ): string {
   const check = correct ? ' ✓' : ''
-  return `${FIELD_LABELS[field]}: ${revealFieldValue(field, track)}${check}`
+  const trimmed = playerAnswer?.trim()
+  if (trimmed) {
+    return `${FIELD_LABELS[field]}: ${trimmed}${check}`
+  }
+  return `${FIELD_LABELS[field]}${check}`
 }

@@ -190,6 +190,7 @@ export function DevSpotifyPage() {
             <SketchRadio
               key={option.value}
               name="clipDuration"
+              value={String(option.value)}
               label={option.label}
               checked={clipDurationMs === option.value}
               onChange={() => setClipDurationMs(option.value)}

@@ -278,8 +278,21 @@ _Completed 2026-09-08._
 
 - Host receives `server:spotify-play-track`; room receives `server:round-clip-ended`.
 - Pre-reveal room state exposes track `id` only — no title/artist/preview.
-- Lobby blocks start until host connects Spotify (clip modes).
-- `/dev/spotify` still available for isolated playback testing.
+- `/dev/spotify` available for isolated playback testing.
+
+### Phase 8c — Preview-first + hidden full playback
+
+- [x] Default `playbackMode: preview` — no Spotify connect on main flow
+- [x] `server:host-play-clip` — host preview audio + Spotify link during clip
+- [x] Unlisted `/host/spotify` beta page for `spotify-full` mode
+- [x] Reveal: “Play full song on Spotify” + jam hint
+
+### Phase 8c completion notes
+
+_Completed 2026-09-08._
+
+- Lobby and setup no longer require Spotify connect.
+- Full Web Playback SDK only when host visits `/host/spotify` and creates a room.
 
 ---
 

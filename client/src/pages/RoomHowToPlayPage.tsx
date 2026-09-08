@@ -8,7 +8,7 @@ import { useRoomStatusRedirect, roomPathForStatus } from '../hooks/useRoomNaviga
 function RoomHowToPlayContent() {
   const navigate = useNavigate()
   const { code = '' } = useParams()
-  const { room, session, busy, error, ackHowToPlay, clearError } = useRoom()
+  const { room, session, busy, error, ackHowToPlay, returnToLobby, clearError, isHost } = useRoom()
 
   useRoomStatusRedirect(code, ['how-to-play'])
 
@@ -23,9 +23,24 @@ function RoomHowToPlayContent() {
     }
   }, [room?.status, room?.code, normalizedCode, navigate])
 
+  useEffect(() => {
+    if (room?.code === normalizedCode && room.status === 'lobby') {
+      navigate(`/room/${normalizedCode}`, { replace: true })
+    }
+  }, [room?.status, room?.code, normalizedCode, navigate])
+
   async function handleReady() {
     clearError()
     await ackHowToPlay()
+  }
+
+  async function handleBackToLobby() {
+    if (!isHost) return
+    clearError()
+    const ok = await returnToLobby()
+    if (ok) {
+      navigate(`/room/${normalizedCode}`, { replace: true })
+    }
   }
 
   if (!room) return null
@@ -46,22 +61,21 @@ function RoomHowToPlayContent() {
     <main className="page page--fade-in">
       <SketchCard tiltSeed="how-to-play">
         <h1 className="page-title page-title--sm">How to play — {modeLabel}</h1>
-        <p className="page-subtitle">Room {normalizedCode}</p>
 
         {isTurnGuess ? (
           <ul className="how-to-list">
             <li>Each round, one player is active — they listen and guess aloud.</li>
-            <li>Everyone else votes YES or NO on each field the host enabled.</li>
+            <li>When voting starts, judges see the song and vote YES or NO on each field.</li>
+            <li>The active player does not see the song until results.</li>
             <li>Majority wins per field — ties count as NO.</li>
-            <li>The active player earns points for accepted fields.</li>
             <li>Most total points after all rounds wins.</li>
           </ul>
         ) : isSingAlong ? (
           <ul className="how-to-list">
-            <li>Each round, one player performs while a song clip plays.</li>
-            <li>Only the active player sees the song — sing along out loud!</li>
-            <li>Everyone else rates the performance from 1 to 10.</li>
-            <li>The average rating becomes that round&apos;s score.</li>
+            <li>Each round, one player performs — they open a blind Spotify link without seeing the title.</li>
+            <li>Everyone else listens while they sing along to the mystery song.</li>
+            <li>When the host starts voting, judges see the song and rate the performance 1–10.</li>
+            <li>The performer only sees the song after ratings are in.</li>
             <li>Most total points after all rounds wins.</li>
           </ul>
         ) : isTimeline ? (
@@ -104,11 +118,11 @@ function RoomHowToPlayContent() {
         </Link>
       ) : null}
 
-      <Link to={`/room/${normalizedCode}`}>
-        <SketchButton variant="ghost" fullWidth>
+      {isHost ? (
+        <SketchButton variant="ghost" fullWidth disabled={busy} onClick={() => void handleBackToLobby()}>
           Back to lobby
         </SketchButton>
-      </Link>
+      ) : null}
     </main>
   )
 }

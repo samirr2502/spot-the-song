@@ -7,6 +7,7 @@ export type MusicPreviewResult = {
   playableCount: number
   skippedCount: number
   source: 'spotify' | 'mock'
+  previewFallbackCount?: number
 }
 
 export async function previewMusicLink(url: string): Promise<MusicPreviewResult> {

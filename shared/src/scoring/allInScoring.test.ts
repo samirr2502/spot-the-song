@@ -3,11 +3,15 @@ import { computeSpeedBonus, scorePlayerRound } from './allInScoring.js'
 
 describe('computeSpeedBonus', () => {
   it('returns max bonus at round start', () => {
-    expect(computeSpeedBonus(0, 0, 30_000)).toBe(50)
+    expect(computeSpeedBonus(0, 0, 15_000)).toBe(50)
   })
 
-  it('returns zero at deadline', () => {
-    expect(computeSpeedBonus(30_000, 0, 30_000)).toBe(0)
+  it('returns zero at clip end', () => {
+    expect(computeSpeedBonus(15_000, 0, 15_000)).toBe(0)
+  })
+
+  it('returns zero after clip end even if guess window remains', () => {
+    expect(computeSpeedBonus(20_000, 0, 15_000)).toBe(0)
   })
 })
 
@@ -32,7 +36,7 @@ describe('scorePlayerRound', () => {
       { title: true, artist: true, album: false, year: false },
       5_000,
       0,
-      30_000,
+      15_000,
     )
 
     expect(result.fieldScores).toHaveLength(2)
@@ -49,7 +53,7 @@ describe('scorePlayerRound', () => {
       { title: true, artist: true, album: false, year: false },
       1_000,
       0,
-      30_000,
+      15_000,
     )
 
     expect(result.fieldScores.every((entry) => !entry.correct)).toBe(true)

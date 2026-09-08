@@ -1,6 +1,33 @@
 import { describe, expect, it } from 'vitest'
 import type { VotePayload } from '../types/voting.js'
-import { scoreTurnGuessRound } from './turnGuessScoring.js'
+import { mergeVotePayloadWithDefaults, scoreTurnGuessRound } from './turnGuessScoring.js'
+
+const GUESS_FIELDS = { title: true, artist: true, album: false, year: false }
+
+describe('mergeVotePayloadWithDefaults', () => {
+  it('defaults unset fields to yes', () => {
+    expect(mergeVotePayloadWithDefaults({}, GUESS_FIELDS)).toEqual({
+      title: true,
+      artist: true,
+    })
+  })
+
+  it('keeps explicit no votes for fields the player selected', () => {
+    expect(mergeVotePayloadWithDefaults({ title: false }, GUESS_FIELDS)).toEqual({
+      title: false,
+      artist: true,
+    })
+  })
+
+  it('keeps explicit yes and no together before submit', () => {
+    expect(
+      mergeVotePayloadWithDefaults({ title: false, artist: true }, GUESS_FIELDS),
+    ).toEqual({
+      title: false,
+      artist: true,
+    })
+  })
+})
 
 describe('scoreTurnGuessRound', () => {
   it('accepts fields with majority yes votes', () => {

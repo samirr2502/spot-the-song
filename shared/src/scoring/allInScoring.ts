@@ -9,12 +9,14 @@ export const MAX_SPEED_BONUS = 50
 export function computeSpeedBonus(
   submittedAt: number,
   roundStartedAt: number,
-  endsAt: number,
+  speedEndsAt: number,
 ): number {
-  const totalMs = endsAt - roundStartedAt
+  if (submittedAt > speedEndsAt) return 0
+
+  const totalMs = speedEndsAt - roundStartedAt
   if (totalMs <= 0) return 0
 
-  const remainingMs = Math.max(0, endsAt - submittedAt)
+  const remainingMs = Math.max(0, speedEndsAt - submittedAt)
   return Math.round((remainingMs / totalMs) * MAX_SPEED_BONUS)
 }
 
@@ -25,7 +27,7 @@ export function scorePlayerRound(
   guessFields: GuessFields,
   submittedAt: number,
   roundStartedAt: number,
-  endsAt: number,
+  speedEndsAt: number,
 ): PlayerRoundResult {
   const fieldScores: PlayerRoundResult['fieldScores'] = []
   const enabledFields: GuessFieldKey[] = (
@@ -39,13 +41,14 @@ export function scorePlayerRound(
       field,
       correct,
       points: correct ? POINTS_PER_FIELD : 0,
+      answer: guess.trim() || undefined,
     })
   }
 
   const fieldPoints = fieldScores.reduce((sum, entry) => sum + entry.points, 0)
   const hasAnyCorrect = fieldScores.some((entry) => entry.correct)
   const speedBonus = hasAnyCorrect
-    ? computeSpeedBonus(submittedAt, roundStartedAt, endsAt)
+    ? computeSpeedBonus(submittedAt, roundStartedAt, speedEndsAt)
     : 0
 
   return {

@@ -1,7 +1,7 @@
 import type { GameRoom, RoundResultsPayload, SubmitAnswersPayload } from '@spot-the-song/shared'
 import { scorePlayerRound } from '@spot-the-song/shared'
 import type { RoomRuntime, StoredAnswer } from './roomRuntime.js'
-import { toMinimalRoundTrack, toPublicTrack, toRevealTrack } from './roomRuntime.js'
+import { toChallengeTrack, toMinimalRoundTrack, toPublicTrack, toRevealTrack } from './roomRuntime.js'
 
 export function buildLeaderboard(room: GameRoom) {
   return room.players
@@ -29,6 +29,8 @@ export function scoreRound(
     const answers = stored?.answers ?? {}
     const submittedAt = stored?.submittedAt ?? endsAt
 
+    const speedEndsAt = runtime.clipEndsAt ?? endsAt
+
     const result = scorePlayerRound(
       player.id,
       answers,
@@ -36,7 +38,7 @@ export function scoreRound(
       room.settings.guessFields,
       submittedAt,
       runtime.roundStartedAt!,
-      endsAt,
+      speedEndsAt,
     )
 
     room.scores[player.id] = (room.scores[player.id] ?? 0) + result.totalRoundPoints
@@ -63,6 +65,7 @@ export function resetRoundRuntime(runtime: RoomRuntime): void {
   runtime.timelineBonusAnswers = null
   runtime.timelinePlacementLocked = false
   runtime.roundStartedAt = null
+  runtime.clipEndsAt = null
   runtime.currentTrack = null
 }
 
@@ -91,7 +94,10 @@ export function syncCurrentRoundPublic(room: GameRoom, runtime: RoomRuntime): vo
     room.currentRound.submittedPlayerIds = Array.from(runtime.roundVotes.keys())
   } else if (room.currentRound.phase === 'rating') {
     room.currentRound.submittedPlayerIds = Array.from(runtime.roundRatings.keys())
-  } else if (room.currentRound.phase === 'answering') {
+  } else if (
+    room.currentRound.phase === 'answering' ||
+    (room.settings.playMode === 'all-in' && room.currentRound.phase === 'clip-playing')
+  ) {
     room.currentRound.submittedPlayerIds = getSubmittedPlayerIds(runtime)
   } else {
     room.currentRound.submittedPlayerIds = []
@@ -104,21 +110,26 @@ export function syncCurrentRoundPublic(room: GameRoom, runtime: RoomRuntime): vo
     : null
   room.currentRound.trackId = runtime.currentTrack?.id ?? null
 
+  const isTurnGuess = room.settings.playMode === 'turns' && room.settings.turnGame === 'guess'
   const isSingAlong = room.settings.playMode === 'turns' && room.settings.turnGame === 'sing'
-  if (
-    isSingAlong &&
-    room.currentRound.phase === 'playing' &&
-    runtime.currentTrack
-  ) {
-    room.currentRound.challengeTrack = {
-      title: runtime.currentTrack.title,
-      artist: runtime.currentTrack.artist,
-      album: runtime.currentTrack.album,
-      year: runtime.currentTrack.year,
-      artworkUrl: runtime.currentTrack.artworkUrl ?? undefined,
+  const phase = room.currentRound.phase
+
+  if (runtime.currentTrack) {
+    if (isTurnGuess && phase === 'voting') {
+      room.currentRound.challengeTrack = toChallengeTrack(runtime.currentTrack)
+    } else if (isSingAlong && phase === 'rating') {
+      room.currentRound.challengeTrack = toChallengeTrack(runtime.currentTrack)
+    } else {
+      room.currentRound.challengeTrack = null
     }
+
+    room.currentRound.performerSpotifyUrl =
+      isSingAlong && phase === 'playing'
+        ? runtime.currentTrack.spotifyUrl ?? undefined
+        : undefined
   } else {
     room.currentRound.challengeTrack = null
+    room.currentRound.performerSpotifyUrl = undefined
   }
 }
 

@@ -1,6 +1,6 @@
 # Spotify Architecture — Spot the Song
 
-Host-only full-track playback via Spotify Web Playback SDK. The game engine stays independent of Spotify.
+Two playback modes: **preview** (default, no host OAuth) and **spotify-full** (beta, Web Playback SDK from 0:00). The game engine stays independent of Spotify.
 
 ---
 
@@ -8,12 +8,19 @@ Host-only full-track playback via Spotify Web Playback SDK. The game engine stay
 
 | Layer | Responsibility |
 |-------|------------------|
-| **Spotify** | Music playback (full tracks, host browser) |
+| **Spotify** | Music playback (preview clips or full tracks, host browser) |
 | **Spot the Song** | Track selection, round timing, answers, voting, scoring, reveal |
 | **Catalog** | Import playlist/album metadata (server) |
-| **Playback** | Play URI from 0ms for N ms (host client only) |
+| **Playback** | Preview audio + optional Spotify link, or full URI playback (host only) |
 
-`preview_url` is **deprecated** for gameplay — optional legacy fallback only.
+### Playback modes (`GameSettings.playbackMode`)
+
+| Mode | Entry | Host clip | OAuth / allowlist |
+|------|-------|-----------|-------------------|
+| **`preview`** (default) | Normal create flow | HTML audio via `previewUrl`; host-only **Open in Spotify** link during clip | None |
+| **`spotify-full`** (beta) | Unlisted `/host/spotify` → connect → create room | Web Playback SDK from 0:00 | Host OAuth + Spotify allowlist + Premium |
+
+After reveal, all players get **Play full song on Spotify** (jam before next round).
 
 ---
 
@@ -32,7 +39,7 @@ sequenceDiagram
   Spotify->>Server: GET /api/spotify/callback?code=
   Server->>Spotify: Exchange code (client secret server-side)
   Server->>Server: Store refresh token (session map + httpOnly cookie)
-  Server->>Client: Redirect /dev/spotify?connected=1
+  Server->>Client: Redirect /host/spotify?connected=1 (or /dev/spotify for dev test)
   Client->>Server: GET /api/spotify/access-token (cookie)
   Server->>Client: Short-lived access token for Web Playback SDK
 ```
@@ -138,18 +145,9 @@ Defined in `shared/src/socket/spotifyEvents.ts`:
 
 | Direction | Event | Payload |
 |-----------|-------|---------|
-| S→host | `server:spotify-play-track` | `{ spotifyUri, startMs, durationMs, roundIndex }` |
-| S→room | `server:round-started` | timer, clip duration — **no answer fields** |
+| S→host | `server:host-play-clip` | `{ previewUrl?, spotifyUrl, durationMs, roundIndex }` — **preview mode** |
+| S→host | `server:spotify-play-track` | `{ spotifyUri, startMs, durationMs, roundIndex }` — **spotify-full mode** |
 | S→room | `server:round-clip-ended` | `{ roundIndex }` |
-| S→room | `server:round-answering` | `{ roundIndex, endsAt }` |
-| S→room | `server:round-reveal` | full track + `spotifyUrl` |
-| H→S | `client:spotify-player-ready` | `{ deviceId }` |
-| H→S | `client:spotify-playback-started` | `{ roundIndex, spotifyUri }` |
-| H→S | `client:spotify-playback-error` | `{ message, code? }` |
-
-Not wired into multiplayer until Phase 8 integration (after `/dev/spotify` test passes).
-
-**Status:** Wired in Phase 8b — host play command + clip-ended in live rooms.
 
 ---
 
@@ -158,13 +156,14 @@ Not wired into multiplayer until Phase 8 integration (after `/dev/spotify` test 
 **Before reveal**
 
 - Guests: `RoundTrackPublic` should expose at most opaque `trackId` (future tightening)
-- Host: receives playback command with URI only
+- Host (preview mode): receives `previewUrl` + `spotifyUrl` only via host socket — no title/artist
+- Host (spotify-full): receives `spotifyUri` only
 - No `spotifyUrl`, title, artist, album, year in room broadcasts
 
 **After reveal**
 
 - `server:round-reveal` / `server:round-results` includes full metadata
-- UI shows **[ Open in Spotify ↗ ]** using `spotifyUrl`
+- UI shows **Play full song on Spotify** using `spotifyUrl`
 
 ---
 
@@ -185,7 +184,8 @@ Setup UI (future): 15s / 30s radio. Random segment mode deferred.
 
 | Error | UX |
 |-------|-----|
-| Host not authenticated | Connect Spotify CTA |
+| Host not authenticated | Only for `spotify-full` — use `/host/spotify` beta path |
+| Preview missing | Host sees Open in Spotify link; timer still runs |
 | Token expired | Reconnect button; server refresh or re-login |
 | SDK unavailable | Sketch error + retry |
 | Player not ready | Initialize player / wait |
@@ -199,17 +199,11 @@ If playback cannot start, **pause the round** rather than silently continuing.
 
 ---
 
-## 11. Dev test route
+## 11. Beta + dev routes
 
-**`/dev/spotify`** — standalone playback test (Phase 8a)
+**`/host/spotify`** — unlisted beta entry for full playback (connect Spotify, enable `spotify-full` for next lobby). Not linked from main navigation.
 
-1. Connect Spotify
-2. Initialize player
-3. Paste track URL/URI
-4. Play first 15s or 30s from 0:00
-5. Auto-pause at clip end; manual Pause
-
-Do not wire multiplayer until this screen works reliably.
+**`/dev/spotify`** — internal playback test (paste track URI, play clip).
 
 ---
 

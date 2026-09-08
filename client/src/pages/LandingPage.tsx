@@ -66,8 +66,8 @@ export function LandingPage() {
           <SketchCheckbox label="Artist" />
         </div>
         <div className="sketch-preview__row">
-          <SketchRadio name="mode" label="All In" defaultChecked />
-          <SketchRadio name="mode" label="Turns" />
+          <SketchRadio name="mode" value="all-in" label="All In" defaultChecked />
+          <SketchRadio name="mode" value="turns" label="Turns" />
         </div>
         <SketchTimer secondsRemaining={12} totalSeconds={30} label="Round" />
         <SketchScore label="Speed bonus" value={25} highlight />

@@ -20,6 +20,7 @@ type SpotifyPlaybackContextValue = {
   playerInitialized: boolean
   initializePlayer: () => Promise<void>
   retryPlayback: () => Promise<void>
+  stopPlayback: () => Promise<void>
 }
 
 const SpotifyPlaybackContext = createContext<SpotifyPlaybackContextValue | null>(null)
@@ -106,6 +107,10 @@ export function SpotifyPlaybackProvider({ children }: { children: ReactNode }) {
     }
   }, [isHost, playPayload, socket])
 
+  const stopPlayback = useCallback(async () => {
+    await serviceRef.current?.pause()
+  }, [])
+
   useEffect(() => {
     if (!socket || !isHost) return
 
@@ -150,8 +155,9 @@ export function SpotifyPlaybackProvider({ children }: { children: ReactNode }) {
       playerInitialized,
       initializePlayer,
       retryPlayback,
+      stopPlayback,
     }),
-    [initializePlayer, playbackMessage, playbackState, playerInitialized, retryPlayback],
+    [initializePlayer, playbackMessage, playbackState, playerInitialized, retryPlayback, stopPlayback],
   )
 
   return (

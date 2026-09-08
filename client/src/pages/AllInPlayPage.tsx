@@ -1,4 +1,4 @@
-import { type FormEvent, useMemo, useState } from 'react'
+import { type FormEvent, useCallback, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { GuessFieldKey, SubmitAnswersPayload } from '@spot-the-song/shared'
 import { RoundClipPlayer } from '../components/RoundClipPlayer'
@@ -12,6 +12,7 @@ import {
 } from '../components/sketch'
 import { useRoom } from '../context/RoomContext'
 import { useCountdown } from '../hooks/useCountdown'
+import { useDeadlineAutoSubmit } from '../hooks/useDeadlineAutoSubmit'
 import { useRoomStatusRedirect } from '../hooks/useRoomNavigation'
 import { formatFieldScoreLabel } from '../lib/revealFieldLabel'
 
@@ -44,7 +45,11 @@ export function AllInPlayPage() {
   const round = room?.currentRound
   const endsAt = round?.endsAt
   const secondsRemaining = useCountdown(endsAt)
-  const guessTimerTotal = room?.settings.guessTimerSeconds ?? 30
+  const clipEndsAt = round?.clipEndsAt ?? null
+  const clipSecondsRemaining = useCountdown(clipEndsAt)
+  const clipDurationSeconds = room?.settings.clipDurationSeconds ?? 30
+  const guessTimerSeconds = room?.settings.guessTimerSeconds ?? 0
+  const totalAnswerSeconds = clipDurationSeconds + guessTimerSeconds
 
   const enabledFields = useMemo(() => {
     if (!room) return [] as GuessFieldKey[]
@@ -52,9 +57,14 @@ export function AllInPlayPage() {
   }, [room])
 
   const [answers, setAnswers] = useState<SubmitAnswersPayload>({})
+  const answersRef = useRef(answers)
+  answersRef.current = answers
+
   const hasSubmitted =
     !!session && !!round?.submittedPlayerIds?.includes(session.playerId)
+  const isClipPlaying = room?.status === 'playing' && round?.phase === 'clip-playing'
   const isAnswering = room?.status === 'playing' && round?.phase === 'answering'
+  const canSubmit = isClipPlaying || isAnswering
   const isRoundResults = room?.status === 'round-results'
   const showIntro = room?.status === 'playing' && round?.phase === 'round-intro'
 
@@ -73,6 +83,23 @@ export function AllInPlayPage() {
     }
   }
 
+  const autoSubmitAnswers = useCallback(async () => {
+    if (hasSubmitted) return
+    clearError()
+    const ok = await submitAnswers(answersRef.current)
+    if (ok) {
+      setAnswers({})
+    }
+  }, [clearError, hasSubmitted, submitAnswers])
+
+  useDeadlineAutoSubmit({
+    enabled: canSubmit,
+    endsAt,
+    secondsRemaining,
+    alreadyDone: hasSubmitted,
+    onAutoSubmit: autoSubmitAnswers,
+  })
+
   async function handleContinue() {
     clearError()
     if (!room || !roundResults) return
@@ -81,15 +108,15 @@ export function AllInPlayPage() {
     const ok = await continueAfterResults()
     if (!ok) return
 
-    navigate(isLastRound ? `/room/${normalizedCode}/results` : `/room/${normalizedCode}/play`)
+    if (isLastRound) {
+      navigate(`/room/${normalizedCode}/results`)
+    }
   }
 
   if (!inRoom || !room) {
     return (
-      <main className="page">
-        <SketchCard tiltSeed="play-loading">
-          <p>Loading game…</p>
-        </SketchCard>
+      <main className="page page--play">
+        <p className="page-subtitle">Loading game…</p>
       </main>
     )
   }
@@ -102,7 +129,7 @@ export function AllInPlayPage() {
           <h1 className="page-title page-title--sm">Reveal</h1>
         </header>
 
-        <SketchSongCard track={roundResults.track} showSpotifyLink />
+        <SketchSongCard track={roundResults.track} showSpotifyLink jamHint />
 
         {myResult ? (
           <SketchCard tiltSeed="my-score">
@@ -110,7 +137,7 @@ export function AllInPlayPage() {
             {myResult.fieldScores.map((entry) => (
               <SketchScore
                 key={entry.field}
-                label={formatFieldScoreLabel(entry.field, roundResults.track, entry.correct)}
+                label={formatFieldScoreLabel(entry.field, entry.correct, entry.answer)}
                 value={entry.points}
                 highlight={entry.correct}
               />
@@ -162,21 +189,28 @@ export function AllInPlayPage() {
 
       <RoundClipPlayer
         isHost={isHost}
+        playbackMode={room.settings.playbackMode}
         phase={round?.phase}
-        clipDurationSeconds={room.settings.clipDurationSeconds}
-        endsAt={round?.endsAt ?? null}
-        secondsRemaining={secondsRemaining}
+        clipDurationSeconds={clipDurationSeconds}
+        endsAt={clipEndsAt}
+        secondsRemaining={isClipPlaying ? clipSecondsRemaining : clipDurationSeconds}
       />
 
-      {round?.phase === 'answering' ? (
+      {canSubmit ? (
         <SketchTimer
           secondsRemaining={secondsRemaining}
-          totalSeconds={guessTimerTotal}
-          label="Time left"
+          totalSeconds={totalAnswerSeconds}
+          label={
+            guessTimerSeconds === 0
+              ? 'Submit during the clip'
+              : isClipPlaying
+                ? 'Submit during the clip for speed bonus'
+                : 'Extra answer time'
+          }
         />
       ) : null}
 
-      {isAnswering && !hasSubmitted ? (
+      {canSubmit && !hasSubmitted ? (
         <SketchCard tiltSeed="answers">
           <form className="setup-form" onSubmit={handleSubmit}>
             {enabledFields.map((field) => (
@@ -197,7 +231,7 @@ export function AllInPlayPage() {
         </SketchCard>
       ) : null}
 
-      {hasSubmitted && isAnswering ? (
+      {hasSubmitted && canSubmit ? (
         <SketchCard tiltSeed="submitted" className="lobby-wait-card">
           <p>Submitted — waiting for others…</p>
           <p className="lobby-players__status">

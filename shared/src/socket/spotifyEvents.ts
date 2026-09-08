@@ -1,3 +1,11 @@
+/** Host-only preview clip command (server → host socket). */
+export type HostClipPlayPayload = {
+  roundIndex: number
+  durationMs: number
+  previewUrl?: string
+  spotifyUrl: string
+}
+
 /** Host-only playback command (server → host socket). */
 export type SpotifyPlayTrackPayload = {
   spotifyUri: string
