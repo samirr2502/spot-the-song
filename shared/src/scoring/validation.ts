@@ -30,3 +30,24 @@ export function validateGameSettings(settings: {
 
   return null
 }
+
+export function validateSingAlongSettings(settings: {
+  roundCount: number
+  clipDurationSeconds: number
+  singTimerSeconds?: number
+}): string | null {
+  if (settings.roundCount < 1 || settings.roundCount > 20) {
+    return 'Choose between 1 and 20 rounds.'
+  }
+
+  if (settings.clipDurationSeconds < 5 || settings.clipDurationSeconds > 60) {
+    return 'Clip duration must be between 5 and 60 seconds.'
+  }
+
+  const singTimer = settings.singTimerSeconds ?? 45
+  if (singTimer < 15 || singTimer > 180) {
+    return 'Performance time must be between 15 and 180 seconds.'
+  }
+
+  return null
+}

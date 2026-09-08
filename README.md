@@ -44,13 +44,13 @@ spot-the-song/
 
 ## Current phase
 
-**Phase 4 — Turn-based Guess** ✓
+**Phase 5 — Sing Along** ✓
 
-- Turns mode: one active player guesses aloud each round
-- Others vote YES/NO per field; majority scoring (ties = NO)
-- Setup at `/create/turns/guess` with Spotify or demo tracks
+- Turns mode: one performer sings while others listen
+- Audience rates 1–10; average × 10 = round points
+- Setup at `/create/turns/sing` with Spotify or demo tracks
 
-Next: **Phase 5 — Sing Along**
+Next: **Phase 6 — Timeline**
 
 ## Spotify credentials
 

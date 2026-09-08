@@ -168,11 +168,11 @@ Full turn-based Guess game loop.
 
 ### Tasks
 
-- [ ] Sing Along setup in Turns flow
-- [ ] Active player challenge display + timer
-- [ ] Audience 1–10 rating UI
-- [ ] One rating per player enforcement
-- [ ] Average calculation + results
+- [x] Sing Along setup in Turns flow
+- [x] Active player challenge display + timer
+- [x] Audience 1–10 rating UI
+- [x] One rating per player enforcement
+- [x] Average calculation + results
 
 ### Deliverable
 
@@ -180,7 +180,10 @@ Complete Sing Along game loop.
 
 ### Phase 5 completion notes
 
-_(pending)_
+- Setup at `/create/turns/sing` with performance timer and Spotify/demo tracks.
+- Server: `singAlongGame.ts`, phases `playing` → `rating` → reveal; average × 10 = round points.
+- Client: `SingAlongPlayPage` with challenge song for active player and 1–10 rating grid for audience.
+- Socket: `client:submit-rating`; active player blocked from self-rating.
 
 ---
 

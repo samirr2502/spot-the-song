@@ -39,13 +39,14 @@ export function RoomHowToPlayPage() {
   }
 
   const isTurnGuess = room.settings.playMode === 'turns' && room.settings.turnGame === 'guess'
+  const isSingAlong = room.settings.playMode === 'turns' && room.settings.turnGame === 'sing'
+
+  const modeLabel = isTurnGuess ? 'Turn Guess' : isSingAlong ? 'Sing Along' : 'All In'
 
   return (
     <main className="page">
       <SketchCard tiltSeed="how-to-play">
-        <h1 className="page-title page-title--sm">
-          How to play — {isTurnGuess ? 'Turn Guess' : 'All In'}
-        </h1>
+        <h1 className="page-title page-title--sm">How to play — {modeLabel}</h1>
         <p className="page-subtitle">Room {normalizedCode}</p>
 
         {isTurnGuess ? (
@@ -54,6 +55,14 @@ export function RoomHowToPlayPage() {
             <li>Everyone else votes YES or NO on each field the host enabled.</li>
             <li>Majority wins per field — ties count as NO.</li>
             <li>The active player earns points for accepted fields.</li>
+            <li>Most total points after all rounds wins.</li>
+          </ul>
+        ) : isSingAlong ? (
+          <ul className="how-to-list">
+            <li>Each round, one player performs while a song clip plays.</li>
+            <li>Only the active player sees the song — sing along out loud!</li>
+            <li>Everyone else rates the performance from 1 to 10.</li>
+            <li>The average rating becomes that round&apos;s score.</li>
             <li>Most total points after all rounds wins.</li>
           </ul>
         ) : (

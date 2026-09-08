@@ -13,6 +13,7 @@ export type RoomRuntime = {
   currentTrack: Track | null
   roundAnswers: Map<string, StoredAnswer>
   roundVotes: Map<string, VotePayload>
+  roundRatings: Map<string, number>
   turnRotationIndex: number
   roundStartedAt: number | null
   howToPlayAcks: Set<string>
@@ -29,6 +30,7 @@ export function createRoomRuntime(trackPool: Track[]): RoomRuntime {
     currentTrack: null,
     roundAnswers: new Map(),
     roundVotes: new Map(),
+    roundRatings: new Map(),
     turnRotationIndex: 0,
     roundStartedAt: null,
     howToPlayAcks: new Set(),

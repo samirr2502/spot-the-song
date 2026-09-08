@@ -1,5 +1,5 @@
-import type { GameRoom, GameSettings, Player, RoundResultsPayload, SubmitAnswersPayload, VotePayload } from '@spot-the-song/shared'
-import { DEFAULT_GAME_SETTINGS, validateGameSettings } from '@spot-the-song/shared'
+import type { GameRoom, GameSettings, Player, RatingPayload, RoundResultsPayload, SubmitAnswersPayload, VotePayload } from '@spot-the-song/shared'
+import { DEFAULT_GAME_SETTINGS, validateGameSettings, validateSingAlongSettings } from '@spot-the-song/shared'
 import {
   allConnectedSubmitted,
   resetRoundRuntime,
@@ -10,11 +10,17 @@ import {
 } from '../game/allInGame.js'
 import {
   allTurnVotesSubmitted,
-  getActivePlayerForTurn,
   scoreTurnGuessRoundResults,
   storeVote,
   validateVotePayload,
 } from '../game/turnGuessGame.js'
+import {
+  allSingRatingsSubmitted,
+  getActivePlayerForTurn,
+  scoreSingAlongRoundResults,
+  storeRating,
+  validateRatingPayload,
+} from '../game/singAlongGame.js'
 import {
   clearRoundTimer,
   createRoomRuntime,
@@ -30,6 +36,7 @@ const DISCONNECT_GRACE_MS = 30_000
 const MAX_PLAYERS = 12
 const ROUND_INTRO_MS = 2000
 const VOTING_SECONDS = 15
+const RATING_SECONDS = 20
 
 export type SessionRecord = {
   sessionToken: string
@@ -82,6 +89,13 @@ export class RoomManager {
       (settings.playMode === 'turns' && settings.turnGame === 'guess')
     ) {
       const validationError = validateGameSettings(settings)
+      if (validationError) {
+        return { ok: false, message: validationError }
+      }
+    }
+
+    if (settings.playMode === 'turns' && settings.turnGame === 'sing') {
+      const validationError = validateSingAlongSettings(settings)
       if (validationError) {
         return { ok: false, message: validationError }
       }
@@ -330,6 +344,42 @@ export class RoomManager {
     return { ok: true, room: this.getPublicRoom(roomId)! }
   }
 
+  submitRating(roomId: string, playerId: string, payload: RatingPayload): SimpleResult {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime) return { ok: false, message: 'Room not found.' }
+
+    if (!this.isSingAlong(room)) {
+      return { ok: false, message: 'Rating is not active.' }
+    }
+
+    if (room.status !== 'playing' || room.currentRound?.phase !== 'rating') {
+      return { ok: false, message: 'Not accepting ratings right now.' }
+    }
+
+    if (room.currentRound.activePlayerId === playerId) {
+      return { ok: false, message: 'The active player cannot rate themselves.' }
+    }
+
+    if (runtime.roundRatings.has(playerId)) {
+      return { ok: false, message: 'You already submitted your rating.' }
+    }
+
+    const validationError = validateRatingPayload(payload)
+    if (validationError) {
+      return { ok: false, message: validationError }
+    }
+
+    storeRating(runtime, playerId, payload.rating)
+    syncCurrentRoundPublic(room, runtime)
+
+    if (allSingRatingsSubmitted(room, runtime)) {
+      return this.finishSingAlongRound(roomId)
+    }
+
+    return { ok: true, room: this.getPublicRoom(roomId)! }
+  }
+
   continueAfterResults(roomId: string, hostPlayerId: string): SimpleResult {
     const room = this.rooms.get(roomId)
     if (!room) return { ok: false, message: 'Room not found.' }
@@ -413,6 +463,7 @@ export class RoomManager {
     const runtime = this.runtimes.get(roomId)
     runtime?.roundAnswers.delete(playerId)
     runtime?.roundVotes.delete(playerId)
+    runtime?.roundRatings.delete(playerId)
     runtime?.howToPlayAcks.delete(playerId)
 
     for (const [token, session] of this.sessions.entries()) {
@@ -435,6 +486,8 @@ export class RoomManager {
         void this.finishAllInRound(roomId)
       } else if (this.isTurnGuess(room) && room.currentRound?.phase === 'voting' && allTurnVotesSubmitted(room, runtime)) {
         void this.finishTurnGuessRound(roomId)
+      } else if (this.isSingAlong(room) && room.currentRound?.phase === 'rating' && allSingRatingsSubmitted(room, runtime)) {
+        void this.finishSingAlongRound(roomId)
       }
     }
 
@@ -476,12 +529,17 @@ export class RoomManager {
   private isPlayableMode(room: GameRoom): boolean {
     return (
       room.settings.playMode === 'all-in' ||
-      (room.settings.playMode === 'turns' && room.settings.turnGame === 'guess')
+      (room.settings.playMode === 'turns' && room.settings.turnGame === 'guess') ||
+      (room.settings.playMode === 'turns' && room.settings.turnGame === 'sing')
     )
   }
 
   private isTurnGuess(room: GameRoom): boolean {
     return room.settings.playMode === 'turns' && room.settings.turnGame === 'guess'
+  }
+
+  private isSingAlong(room: GameRoom): boolean {
+    return room.settings.playMode === 'turns' && room.settings.turnGame === 'sing'
   }
 
   private beginFirstRound(roomId: string): SimpleResult {
@@ -494,6 +552,10 @@ export class RoomManager {
 
     if (this.isTurnGuess(room)) {
       return this.startTurnGuessRound(roomId, roundIndex)
+    }
+
+    if (this.isSingAlong(room)) {
+      return this.startSingAlongRound(roomId, roundIndex)
     }
 
     return this.startAllInRound(roomId, roundIndex)
@@ -617,6 +679,102 @@ export class RoomManager {
     runtime.roundTimer = setTimeout(() => {
       void this.finishTurnGuessRound(roomId)
     }, VOTING_SECONDS * 1000)
+  }
+
+  private startSingAlongRound(roomId: string, roundIndex: number): SimpleResult {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime) return { ok: false, message: 'Room not found.' }
+
+    clearRoundTimer(runtime)
+    resetRoundRuntime(runtime)
+
+    const track = pickRandomTrack(runtime)
+    if (!track) {
+      room.status = 'final-results'
+      room.currentRound = null
+      return { ok: true, room: this.getPublicRoom(roomId)! }
+    }
+
+    const activePlayer = getActivePlayerForTurn(room, runtime)
+    const singTimerMs = (room.settings.singTimerSeconds ?? 45) * 1000
+
+    room.status = 'playing'
+    room.currentRound = {
+      index: roundIndex,
+      phase: 'round-intro',
+      activePlayerId: activePlayer.id,
+      trackId: track.id,
+      endsAt: null,
+      roundTrack: toPublicTrack(track),
+      submittedPlayerIds: [],
+    }
+
+    setTimeout(() => {
+      const liveRoom = this.rooms.get(roomId)
+      const liveRuntime = this.runtimes.get(roomId)
+      if (!liveRoom || !liveRuntime || !liveRoom.currentRound) return
+      if (liveRoom.status !== 'playing') return
+
+      liveRuntime.roundStartedAt = Date.now()
+      liveRoom.currentRound.phase = 'playing'
+      liveRoom.currentRound.endsAt = Date.now() + singTimerMs
+      syncCurrentRoundPublic(liveRoom, liveRuntime)
+
+      this.emitHandlers?.onRoomUpdated(this.getPublicRoom(roomId)!)
+
+      liveRuntime.roundTimer = setTimeout(() => {
+        this.openSingAlongRating(roomId)
+      }, singTimerMs)
+    }, ROUND_INTRO_MS)
+
+    return { ok: true, room: this.getPublicRoom(roomId)! }
+  }
+
+  private openSingAlongRating(roomId: string): void {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime || !room.currentRound) return
+    if (room.status !== 'playing') return
+
+    clearRoundTimer(runtime)
+    runtime.roundRatings.clear()
+
+    room.currentRound.phase = 'rating'
+    room.currentRound.endsAt = Date.now() + RATING_SECONDS * 1000
+    syncCurrentRoundPublic(room, runtime)
+
+    this.emitHandlers?.onRoomUpdated(this.getPublicRoom(roomId)!)
+
+    runtime.roundTimer = setTimeout(() => {
+      void this.finishSingAlongRound(roomId)
+    }, RATING_SECONDS * 1000)
+  }
+
+  private finishSingAlongRound(roomId: string): SimpleResult {
+    const room = this.rooms.get(roomId)
+    const runtime = this.runtimes.get(roomId)
+    if (!room || !runtime || !room.currentRound) {
+      return { ok: false, message: 'No active round.' }
+    }
+
+    clearRoundTimer(runtime)
+
+    room.currentRound.phase = 'reveal'
+    room.currentRound.endsAt = null
+
+    const roundResults = scoreSingAlongRoundResults(room, runtime)
+    runtime.turnRotationIndex += 1
+    room.status = 'round-results'
+
+    const publicRoom = this.getPublicRoom(roomId)!
+    this.emitHandlers?.onRoomUpdated(publicRoom)
+    if (roundResults) {
+      runtime.lastRoundResults = roundResults
+      this.emitHandlers?.onRoundResults(roomId, roundResults)
+    }
+
+    return { ok: true, room: publicRoom, roundResults: roundResults ?? undefined }
   }
 
   private finishAllInRound(roomId: string): SimpleResult {

@@ -1,4 +1,5 @@
 import type { GameSettings, GameRoom } from '../types/game.js'
+import type { RatingPayload } from '../types/rating.js'
 import type { RoundResultsPayload, SubmitAnswersPayload } from '../types/round.js'
 import type { VotePayload } from '../types/voting.js'
 
@@ -50,6 +51,10 @@ export type ClientToServerEvents = {
   ) => void
   'client:submit-votes': (
     payload: VotePayload,
+    callback: (result: ActionResult) => void,
+  ) => void
+  'client:submit-rating': (
+    payload: RatingPayload,
     callback: (result: ActionResult) => void,
   ) => void
   'client:continue-after-results': (callback: (result: ActionResult) => void) => void

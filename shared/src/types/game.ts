@@ -39,6 +39,14 @@ export type RoundPhase =
   | 'rating'
   | 'reveal'
 
+export type ChallengeTrack = {
+  title: string
+  artist: string
+  album: string
+  year: number
+  artworkUrl?: string
+}
+
 export type CurrentRound = {
   index: number
   phase: RoundPhase
@@ -46,6 +54,7 @@ export type CurrentRound = {
   trackId: string | null
   endsAt: number | null
   roundTrack?: RoundTrackPublic | null
+  challengeTrack?: ChallengeTrack | null
   submittedPlayerIds?: string[]
 }
 

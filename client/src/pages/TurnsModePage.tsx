@@ -22,7 +22,7 @@ const TURN_GAMES: Array<{
     title: 'Sing Along',
     description: 'Perform for the room — audience rates your show.',
     setupPath: '/create/turns/sing',
-    available: false,
+    available: true,
   },
   {
     id: 'timeline',

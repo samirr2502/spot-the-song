@@ -195,6 +195,23 @@ export function attachSocketHandlers(httpServer: HttpServer, clientOrigin: strin
       callback({ ok: true })
     })
 
+    socket.on('client:submit-rating', (payload, callback) => {
+      const { playerId, roomId } = socket.data
+      if (!playerId || !roomId) {
+        callback({ ok: false, message: 'You are not in a room.' })
+        return
+      }
+
+      const result = roomManager.submitRating(roomId, playerId, payload)
+      if (!result.ok) {
+        callback(result)
+        return
+      }
+
+      emitRoomState(io, result.room)
+      callback({ ok: true })
+    })
+
     socket.on('client:continue-after-results', (callback) => {
       const { playerId, roomId } = socket.data
       if (!playerId || !roomId) {

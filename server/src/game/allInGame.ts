@@ -58,6 +58,7 @@ export function scoreRound(
 export function resetRoundRuntime(runtime: RoomRuntime): void {
   runtime.roundAnswers = new Map()
   runtime.roundVotes = new Map()
+  runtime.roundRatings = new Map()
   runtime.roundStartedAt = null
   runtime.currentTrack = null
 }
@@ -85,6 +86,8 @@ export function syncCurrentRoundPublic(room: GameRoom, runtime: RoomRuntime): vo
 
   if (room.currentRound.phase === 'voting') {
     room.currentRound.submittedPlayerIds = Array.from(runtime.roundVotes.keys())
+  } else if (room.currentRound.phase === 'rating') {
+    room.currentRound.submittedPlayerIds = Array.from(runtime.roundRatings.keys())
   } else if (room.currentRound.phase === 'answering') {
     room.currentRound.submittedPlayerIds = getSubmittedPlayerIds(runtime)
   } else {
@@ -93,6 +96,23 @@ export function syncCurrentRoundPublic(room: GameRoom, runtime: RoomRuntime): vo
 
   room.currentRound.roundTrack = runtime.currentTrack ? toPublicTrack(runtime.currentTrack) : null
   room.currentRound.trackId = runtime.currentTrack?.id ?? null
+
+  const isSingAlong = room.settings.playMode === 'turns' && room.settings.turnGame === 'sing'
+  if (
+    isSingAlong &&
+    room.currentRound.phase === 'playing' &&
+    runtime.currentTrack
+  ) {
+    room.currentRound.challengeTrack = {
+      title: runtime.currentTrack.title,
+      artist: runtime.currentTrack.artist,
+      album: runtime.currentTrack.album,
+      year: runtime.currentTrack.year,
+      artworkUrl: runtime.currentTrack.artworkUrl,
+    }
+  } else {
+    room.currentRound.challengeTrack = null
+  }
 }
 
 export function toPublicRoom(room: GameRoom, runtime: RoomRuntime | undefined): GameRoom {

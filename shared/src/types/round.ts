@@ -28,8 +28,10 @@ export type PlayerRoundResult = {
 
 export type RoundResultsPayload = {
   roundIndex: number
-  mode?: 'all-in' | 'turn-guess'
+  mode?: 'all-in' | 'turn-guess' | 'sing-along'
   activePlayerId?: string
+  averageRating?: number
+  ratingCount?: number
   track: {
     id: string
     title: string

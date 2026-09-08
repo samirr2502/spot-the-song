@@ -11,6 +11,7 @@ import { JoinPage } from './pages/JoinPage'
 import { LandingPage } from './pages/LandingPage'
 import { LobbyPage } from './pages/LobbyPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
+import { SingAlongSetupPage } from './pages/SingAlongSetupPage'
 import { TurnGuessSetupPage } from './pages/TurnGuessSetupPage'
 import { TurnsModePage } from './pages/TurnsModePage'
 import { RoomHowToPlayPage } from './pages/RoomHowToPlayPage'
@@ -66,6 +67,14 @@ export function App() {
           element={
             <RequireName>
               <TurnGuessSetupPage />
+            </RequireName>
+          }
+        />
+        <Route
+          path="/create/turns/sing"
+          element={
+            <RequireName>
+              <SingAlongSetupPage />
             </RequireName>
           }
         />
