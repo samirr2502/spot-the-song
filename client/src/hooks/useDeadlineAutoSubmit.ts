@@ -20,16 +20,29 @@ export function useDeadlineAutoSubmit({
   onAutoSubmit,
 }: UseDeadlineAutoSubmitOptions): void {
   const attemptedRef = useRef(false)
+  const seenLiveCountdownRef = useRef(false)
 
   useEffect(() => {
     attemptedRef.current = false
+    seenLiveCountdownRef.current = false
   }, [endsAt, enabled])
+
+  useEffect(() => {
+    if (!enabled || !endsAt) return
+
+    const msRemaining = endsAt - Date.now()
+    const liveThresholdMs = (triggerAtOrBelow + 1) * 1000
+    if (msRemaining > liveThresholdMs || secondsRemaining > triggerAtOrBelow) {
+      seenLiveCountdownRef.current = true
+    }
+  }, [enabled, endsAt, secondsRemaining, triggerAtOrBelow])
 
   useEffect(() => {
     if (!enabled || alreadyDone || attemptedRef.current) return
     if (!endsAt || secondsRemaining > triggerAtOrBelow) return
-    // Guard against stale countdown (e.g. endsAt just became set while remaining was still 0).
     if (Date.now() < endsAt) return
+    // Ignore stale deadlines carried over from a prior phase (e.g. performing → rating).
+    if (!seenLiveCountdownRef.current) return
 
     attemptedRef.current = true
     void onAutoSubmit()

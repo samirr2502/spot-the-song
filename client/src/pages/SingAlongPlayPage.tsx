@@ -42,7 +42,6 @@ export function SingAlongPlayPage() {
   const inRoom = room?.code === normalizedCode && session?.roomCode === normalizedCode
   const round = room?.currentRound
   const endsAt = round?.endsAt
-  const secondsRemaining = useCountdown(endsAt)
   const singTimerTotal = room?.settings.singTimerSeconds ?? 45
 
   const activePlayer = useMemo(() => {
@@ -57,6 +56,11 @@ export function SingAlongPlayPage() {
   const isRating = room?.status === 'playing' && round?.phase === 'rating'
   const isRoundResults = room?.status === 'round-results'
   const showIntro = room?.status === 'playing' && round?.phase === 'round-intro'
+
+  const performanceEndsAt = isPerforming ? endsAt : null
+  const ratingEndsAt = isRating ? endsAt : null
+  const performanceSecondsRemaining = useCountdown(performanceEndsAt)
+  const ratingSecondsRemaining = useCountdown(ratingEndsAt)
 
   const [selectedRating, setSelectedRating] = useState<number | null>(null)
   const selectedRatingRef = useRef(selectedRating)
@@ -78,8 +82,8 @@ export function SingAlongPlayPage() {
 
   useDeadlineAutoSubmit({
     enabled: isPerforming && isHost && singTimerTotal > 0,
-    endsAt,
-    secondsRemaining,
+    endsAt: performanceEndsAt,
+    secondsRemaining: performanceSecondsRemaining,
     alreadyDone: false,
     onAutoSubmit: handleStartRating,
   })
@@ -105,8 +109,8 @@ export function SingAlongPlayPage() {
 
   useDeadlineAutoSubmit({
     enabled: isRating && !isActivePlayer,
-    endsAt,
-    secondsRemaining,
+    endsAt: ratingEndsAt,
+    secondsRemaining: ratingSecondsRemaining,
     alreadyDone: hasSubmitted,
     triggerAtOrBelow: 1,
     onAutoSubmit: autoSubmitRating,
@@ -215,15 +219,15 @@ export function SingAlongPlayPage() {
 
       {isPerforming && singTimerTotal > 0 ? (
         <SketchTimer
-          secondsRemaining={secondsRemaining}
+          secondsRemaining={performanceSecondsRemaining}
           totalSeconds={singTimerTotal}
           label="Performance time"
         />
       ) : null}
 
-      {round?.phase === 'rating' ? (
+      {isRating ? (
         <SketchTimer
-          secondsRemaining={secondsRemaining}
+          secondsRemaining={ratingSecondsRemaining}
           totalSeconds={RATING_SECONDS}
           label="Rating time"
         />

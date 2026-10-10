@@ -50,7 +50,6 @@ export function TurnGuessPlayPage() {
   const inRoom = room?.code === normalizedCode && session?.roomCode === normalizedCode
   const round = room?.currentRound
   const endsAt = round?.endsAt
-  const secondsRemaining = useCountdown(endsAt)
   const clipDurationSeconds = room?.settings.clipDurationSeconds ?? 30
   const guessTimerSeconds = room?.settings.guessTimerSeconds ?? 0
   const totalGuessSeconds = clipDurationSeconds + guessTimerSeconds
@@ -76,6 +75,11 @@ export function TurnGuessPlayPage() {
   const isVoting = room?.status === 'playing' && round?.phase === 'voting'
   const isRoundResults = room?.status === 'round-results'
   const showIntro = room?.status === 'playing' && round?.phase === 'round-intro'
+
+  const guessEndsAt = isGuessing ? endsAt : null
+  const votingEndsAt = isVoting ? endsAt : null
+  const guessSecondsRemaining = useCountdown(guessEndsAt)
+  const votingSecondsRemaining = useCountdown(votingEndsAt)
 
   const [votes, setVotes] = useState<VotePayload>({})
   const votesRef = useRef(votes)
@@ -121,8 +125,8 @@ export function TurnGuessPlayPage() {
 
   useDeadlineAutoSubmit({
     enabled: isVoting && !isActivePlayer,
-    endsAt,
-    secondsRemaining,
+    endsAt: votingEndsAt,
+    secondsRemaining: votingSecondsRemaining,
     alreadyDone: hasSubmitted,
     triggerAtOrBelow: 1,
     onAutoSubmit: autoSubmitVotes,
@@ -266,7 +270,7 @@ export function TurnGuessPlayPage() {
 
       {isGuessing ? (
         <SketchTimer
-          secondsRemaining={secondsRemaining}
+          secondsRemaining={guessSecondsRemaining}
           totalSeconds={totalGuessSeconds}
           label={
             guessTimerSeconds === 0
@@ -278,9 +282,9 @@ export function TurnGuessPlayPage() {
         />
       ) : null}
 
-      {round?.phase === 'voting' ? (
+      {isVoting ? (
         <SketchTimer
-          secondsRemaining={secondsRemaining}
+          secondsRemaining={votingSecondsRemaining}
           totalSeconds={VOTING_SECONDS}
           label="Voting time"
         />
